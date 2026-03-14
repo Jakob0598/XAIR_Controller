@@ -7,12 +7,59 @@
 #include <WiFiUdp.h>
 #include <OSCMessage.h>
 
-WiFiUDP Udp;
-IPAddress outIp;
+ WiFiUDP Udp;
+ IPAddress outIP;
+
+
+void oscBroadcast(const char* address)
+{
+    OSCMessage msg(address);
+
+    Udp.beginPacket(IPAddress(255,255,255,255), settings.sendPort);
+    msg.send(Udp);
+    Udp.endPacket();
+    msg.empty();
+    DBG2("oscBroadcast: ",address);
+}
+
+void oscSend(const char* address)
+{
+    OSCMessage msg(address);
+
+    Udp.beginPacket(outIP, settings.sendPort);
+    msg.send(Udp);
+    Udp.endPacket();
+    msg.empty();
+    DBG2("oscSend: ",address);
+}
+
+void oscSendFloat(const char* address, float value)
+{
+    OSCMessage msg(address);
+    msg.add(value);
+
+    Udp.beginPacket(outIP, settings.sendPort);
+    msg.send(Udp);
+    Udp.endPacket();
+    msg.empty();
+    DBG3("oscSendFloat: ",address, value);
+}
+
+void oscSendInt(const char* address, int value)
+{
+    OSCMessage msg(address);
+    msg.add(value);
+
+    Udp.beginPacket(outIP, settings.sendPort);
+    msg.send(Udp);
+    Udp.endPacket();
+    msg.empty();
+    DBG3("oscSendInt: ",address, value);
+}
 
 void oscBegin()
 {
-    outIp = IPAddress(
+    outIP = IPAddress(
         settings.ip[0],
         settings.ip[1],
         settings.ip[2],
@@ -23,87 +70,71 @@ void oscBegin()
 
     DBG("OSC started");
 
-    DBG2("Send IP: ", outIp);
+    DBG2("Send IP: ", outIP);
     DBG2("Send Port: ", settings.sendPort);
     DBG2("Receive Port: ", settings.receivePort);
-}
-
-void sendOSCFloat(const char* addr,float value) {
-
-    OSCMessage msg(addr);
-    msg.add(value);
-
-    Udp.beginPacket(outIp,settings.sendPort);
-    msg.send(Udp);
-    Udp.endPacket();
-    msg.empty();
 }
 
 void oscLoop()
 {
     OSCMessage msg;
     int size = Udp.parsePacket();
-
-    if(size<=0) return;
-
-    uint8_t buf[size];
-
-    Udp.read(buf,size);
-
-    msg.fill(buf,size);
-
-    if(msg.hasError())
+    if (size > 0)
     {
-        DBG("OSC error");
-        return;
-    }
-
-    String addr = msg.getAddress();
-
-    DBG2("OSC RX: ", addr);
-
-    webuiUpdateOSC(addr);
-
-    if(addr.startsWith("/ch/")) {
-
-    int ch = addr.substring(4,6).toInt()-1;
-
-    if(addr.endsWith("/mix/fader"))
-{
-    float value = msg.getFloat(0);
-
-    DBG2("Fader value: ", value);
-
-    mixer.ch[ch].fader = value;
-}
-
-    if(addr.indexOf("/eq/") != -1) {
-
-        int band = addr.substring(7,8).toInt()-1;
-
-        if(addr.endsWith("/f"))
-            mixer.ch[ch].eq[band].freq = msg.getFloat(0);
-
-        if(addr.endsWith("/g"))
-            mixer.ch[ch].eq[band].gain = msg.getFloat(0);
-
-        if(addr.endsWith("/q"))
-            mixer.ch[ch].eq[band].q = msg.getFloat(0);
-    }
-
-    if(addr.indexOf("/mix/") != -1) {
-
-        for(int a=0;a<MAX_AUX;a++) {
-
-            String path="/mix/"+String(a+1);
-
-            if(addr.endsWith(path))
-                mixer.ch[ch].aux[a] = msg.getFloat(0);
-
+        DBG2("OSC Received by IP: ", Udp.remoteIP());
+        while (size--)
+        {
+            msg.fill(Udp.read());
         }
 
+        if (!msg.hasError())
+        {
+            char address[64];
+            msg.getAddress(address);
+            DBG2("OSC Address: ", address);
+            for (int i = 0; i < msg.size(); i++)
+{
+    if (msg.isInt(i))
+    {
+        int value = msg.getInt(i);
+        DBG3("Int: ", i, value);
     }
 
+    else if (msg.isFloat(i))
+    {
+        float value = msg.getFloat(i);
+        DBG3("Float: ", i, value);
+    }
+
+    else if (msg.isDouble(i))
+    {
+        double value = msg.getDouble(i);
+        DBG3("Double: ", i, value);
+    }
+
+    else if (msg.isString(i))
+    {
+        char value[64];
+        msg.getString(i, value, 64);
+        DBG3("String: ", i, value);
+    }
+
+    else if (msg.isBoolean(i))
+    {
+        bool value = msg.getBoolean(i);
+        DBG3("Bool: ", i, value);
+    }
+
+    else
+    {
+        DBG2("Unknown type index: ", i);
+    }
+}
+        }
+        else
+        {
+            DBG("OSC error");
+        }
+    }
 }
 
-}

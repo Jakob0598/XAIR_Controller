@@ -6,8 +6,8 @@
 
 #if DEBUG_SERIAL
   #define DBG(x) Serial.println(x)
-  #define DBG2(x,y) { Serial.print(x); Serial.println(y); }
-  #define DBG3(x,y,z) { Serial.print(x); Serial.print(y); Serial.println(z); }
+  #define DBG2(x,y) { Serial.print(x); Serial.print(" "); Serial.println(y); }
+  #define DBG3(x,y,z) { Serial.print(x); Serial.print(" "); Serial.print(y); Serial.print(" "); Serial.println(z); }
 #else
   #define DBG(x)
   #define DBG2(x,y)

@@ -1,6 +1,10 @@
 #pragma once
+#include <Arduino.h>
 
 void oscBegin();
 void oscLoop();
 
-void sendOSCFloat(const char* addr,float value);
+void oscBroadcast(const char* address);
+void oscSend(const char* address);
+void oscSendFloat(const char* address, float value);
+void oscSendInt(const char* address, int value);

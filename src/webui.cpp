@@ -17,6 +17,9 @@ uint16_t oscStringField;
 uint16_t oscIntField;
 uint16_t oscFloatField;
 
+uint16_t discoverMixerButton;
+uint16_t discoveredMixerField;
+
 /* ---------------------------------------------------------- */
 
 uint8_t validIP(int value)
@@ -83,19 +86,31 @@ void saveNetworkCallback(Control *sender, int type)
     ESP.restart();
 }
 
-/* OSC TEST SEND */
+//OSC TEST SEND
 
 void sendOSC(Control *sender, int type)
 {
     if(type != B_DOWN) return;
 
-    String addr = ESPUI.getControl(oscAddressField)->value;
+    oscSendFloat("/ch/01/mix/on", 0);
+}
+void sendxOSC(Control *sender, int type)
+{
+    if(type != B_DOWN) return;
 
-    Serial.print("OSC Test Send: ");
-    Serial.println(addr);
+    oscBroadcast("/lr/mix/fader/");
+}
+void sendyOSC(Control *sender, int type)
+{
+    if(type != B_DOWN) return;
 
-    // hier könnte man später direkt osc_manager aufrufen
-    sendOSCFloat("t",1);
+    oscBroadcast("/xinfo/");
+}
+void sendzOSC(Control *sender, int type)
+{
+    if(type != B_DOWN) return;
+
+    oscBroadcast("/xinfo");
 }
 
 /* ---------------------------------------------------------- */
@@ -108,20 +123,11 @@ void webuiBegin()
     /* CONTROL TAB */
 
     auto maintab = ESPUI.addControl(Tab,"","Controls");
-
-    oscAddressField =
-        ESPUI.addControl(Text,"OSC Address","/test",None,maintab,textCallback);
-
-    oscStringField =
-        ESPUI.addControl(Text,"String","hello",None,maintab,textCallback);
-
-    oscIntField =
-        ESPUI.addControl(Text,"Integer","123",None,maintab,textCallback);
-
-    oscFloatField =
-        ESPUI.addControl(Text,"Float","3.14",None,maintab,textCallback);
-
+    
     ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendOSC);
+    ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendxOSC);
+    ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendyOSC);
+    ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendzOSC);
 
     /* UDP TAB */
 

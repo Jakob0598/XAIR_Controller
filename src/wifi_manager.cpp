@@ -10,8 +10,8 @@ unsigned long wifiFailStart = 0;
 
 bool apModeActive = false;
 
-const unsigned long reconnectInterval = 3000;
-const unsigned long apFallbackDelay = 20000;
+const unsigned long reconnectInterval = WIFI_RECONNECT_INTERVAL;
+const unsigned long apFallbackDelay = WIFI_AP_TIMEOUT;
 
 
 void startAP()
