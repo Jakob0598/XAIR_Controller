@@ -1,14 +1,12 @@
-#include "wifi_manager.h"
-#include "settings.h"
 #include "config.h"
 
-#include <WiFi.h>
-#include <ESPmDNS.h>
+
+WifiState wifiState = WIFI_DISCONNECTED;
 
 unsigned long lastReconnectAttempt = 0;
 unsigned long wifiFailStart = 0;
 
-bool apModeActive = false;
+bool mdnsStarted = false;
 
 const unsigned long reconnectInterval = WIFI_RECONNECT_INTERVAL;
 const unsigned long apFallbackDelay = WIFI_AP_TIMEOUT;
@@ -23,20 +21,87 @@ void startAP()
 
     DBG2("AP IP: ", WiFi.softAPIP());
 
-    apModeActive = true;
+    wifiState = WIFI_AP_FALLBACK;
+}
+
+
+void stopAP()
+{
+    DBG("Stopping fallback AP");
+
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_STA);
 }
 
 
 void startMDNS()
 {
+    if (mdnsStarted) return;
+
     if (MDNS.begin(HOSTNAME))
     {
         DBG("mDNS responder started");
         DBG3("Open http://", HOSTNAME, ".local");
+        mdnsStarted = true;
     }
     else
     {
         DBG("mDNS start failed");
+    }
+}
+
+
+void connectWiFi()
+{
+    wl_status_t status = WiFi.status();
+
+    if (status == WL_CONNECTED || status == WL_IDLE_STATUS)
+        return;
+
+    DBG2("Connecting to SSID: ", settings.ssid);
+
+    WiFi.begin(settings.ssid, settings.password);
+
+    wifiState = WIFI_CONNECTING;
+    lastReconnectAttempt = millis();
+}
+
+
+void WiFiEvent(WiFiEvent_t event)
+{
+    switch(event)
+    {
+
+        case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+            DBG("WiFi connected to AP");
+            break;
+
+
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+
+            DBG("WiFi got IP");
+            DBG2("IP: ", WiFi.localIP());
+
+            wifiState = WIFI_CONNECTED;
+
+            wifiFailStart = 0;
+
+            startMDNS();
+
+            break;
+
+
+        case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+
+            DBG("WiFi lost connection");
+
+            wifiState = WIFI_DISCONNECTED;
+
+            break;
+
+
+        default:
+            break;
     }
 }
 
@@ -48,15 +113,21 @@ void wifiBegin()
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(HOSTNAME);
 
-    DBG2("Connecting to SSID: ", settings.ssid);
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
+    WiFi.setSleep(false);
 
-    WiFi.begin(settings.ssid, settings.password);
+    WiFi.onEvent(WiFiEvent);
+
+    wifiState = WIFI_CONNECTING;
+
+    connectWiFi();
 }
 
 
 bool wifiConnected()
 {
-    return WiFi.status() == WL_CONNECTED;
+    return wifiState == WIFI_CONNECTED;
 }
 
 
@@ -64,44 +135,73 @@ void wifiLoop()
 {
     unsigned long now = millis();
 
-    if (WiFi.status() != WL_CONNECTED)
+    switch (wifiState)
     {
-        if (now - lastReconnectAttempt > reconnectInterval)
-        {
-            DBG("WiFi reconnect attempt");
 
-            WiFi.begin(settings.ssid, settings.password);
+        case WIFI_CONNECTED:
+            return;
 
-            lastReconnectAttempt = now;
-        }
 
-        if (wifiFailStart == 0)
-        {
-            wifiFailStart = now;
-        }
+        case WIFI_CONNECTING:
+        case WIFI_DISCONNECTED:
 
-        if (!apModeActive && (now - wifiFailStart > apFallbackDelay))
-        {
-            DBG("WiFi offline -> enabling AP fallback");
+            if (wifiFailStart == 0)
+            {
+                wifiFailStart = now;
+            }
+            if (wifiState == WIFI_CONNECTING)
+            {
+                return;
+            }
+            if (now - lastReconnectAttempt > reconnectInterval)
+            {
+                wl_status_t status = WiFi.status();
+                
+                if (status == WL_DISCONNECTED || status == WL_CONNECT_FAILED)
+                {
+                    DBG("WiFi reconnect attempt");
 
-            startAP();
-        }
+                    WiFi.disconnect(false);
+                    connectWiFi();
+                }
+
+                lastReconnectAttempt = now;
+            }
+
+            if (now - wifiFailStart > apFallbackDelay)
+            {
+                startAP();
+            }
+
+            break;
+
+
+        case WIFI_AP_FALLBACK:
+
+            if (WiFi.status() == WL_CONNECTED)
+            {
+                DBG("WiFi restored -> disabling AP");
+
+                stopAP();
+
+                wifiState = WIFI_CONNECTED;
+            }
+
+            break;
     }
-    else
-    {
-        static bool printed = false;
+}
 
-        if (!printed)
-        {
-            DBG("WiFi connected");
+WifiState wifiGetState()
+{
+    return wifiState;
+}
 
-            DBG2("IP: ", WiFi.localIP());
+String wifiSSID()
+{
+    return WiFi.SSID();
+}
 
-            startMDNS();
-
-            printed = true;
-        }
-
-        wifiFailStart = 0;
-    }
+IPAddress wifiIP()
+{
+    return WiFi.localIP();
 }

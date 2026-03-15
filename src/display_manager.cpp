@@ -1,8 +1,4 @@
-#include "display_manager.h"
-#include "mixer_state.h"
 #include "config.h"
-#include <TFT_eSPI.h>
-#include <math.h>
 
 TFT_eSPI tft = TFT_eSPI();
 

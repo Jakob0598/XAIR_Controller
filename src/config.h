@@ -25,3 +25,20 @@
 #define MAX_CHANNELS 16
 #define MAX_AUX 6
 
+#include <Arduino.h>
+#include "settings.h"
+#include "wifi_manager.h"
+#include "osc_manager.h"
+#include "display_manager.h"
+#include "webui.h"
+#include "network_manager.h"
+#include "mixer_state.h"
+#include <TFT_eSPI.h>
+#include <math.h>
+#include <WiFiUdp.h>
+#include <OSCMessage.h>
+#include <EEPROM.h>
+#include <ESPUI.h>
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <menu.h>

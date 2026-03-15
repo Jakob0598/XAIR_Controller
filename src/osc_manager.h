@@ -1,8 +1,8 @@
 #pragma once
-#include <Arduino.h>
 
 void oscBegin();
 void oscLoop();
+void oscReconnect();
 
 void oscBroadcast(const char* address);
 void oscSend(const char* address);

@@ -1,8 +1,6 @@
-#include "webui.h"
-#include "settings.h"
 #include "config.h"
-#include "osc_manager.h"
-#include <ESPUI.h>
+
+
 
 uint16_t wifi_ssid_text;
 uint16_t wifi_pass_text;

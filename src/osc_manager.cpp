@@ -1,18 +1,15 @@
-#include "osc_manager.h"
-#include "settings.h"
-#include "mixer_state.h"
-#include "webui.h"
 #include "config.h"
 
-#include <WiFiUdp.h>
-#include <OSCMessage.h>
 
  WiFiUDP Udp;
  IPAddress outIP;
+static unsigned long oscReadyTime = 0;
+static unsigned long lastXremote = 0;
 
 
 void oscBroadcast(const char* address)
 {
+    if (!wifiConnected()){return;}
     OSCMessage msg(address);
 
     Udp.beginPacket(IPAddress(255,255,255,255), settings.sendPort);
@@ -24,6 +21,7 @@ void oscBroadcast(const char* address)
 
 void oscSend(const char* address)
 {
+    if (!wifiConnected()){return;}
     OSCMessage msg(address);
 
     Udp.beginPacket(outIP, settings.sendPort);
@@ -35,6 +33,7 @@ void oscSend(const char* address)
 
 void oscSendFloat(const char* address, float value)
 {
+    if (!wifiConnected()){return;}
     OSCMessage msg(address);
     msg.add(value);
 
@@ -47,6 +46,7 @@ void oscSendFloat(const char* address, float value)
 
 void oscSendInt(const char* address, int value)
 {
+    if (!wifiConnected()){return;}
     OSCMessage msg(address);
     msg.add(value);
 
@@ -65,20 +65,55 @@ void oscBegin()
         settings.ip[2],
         settings.ip[3]
     );
-
+    
     Udp.begin(settings.receivePort);
+    Udp.setTimeout(0);
 
     DBG("OSC started");
 
-    DBG2("Send IP: ", outIP);
+    DBG2("Send IP: ", outIP.toString());
     DBG2("Send Port: ", settings.sendPort);
     DBG2("Receive Port: ", settings.receivePort);
 }
 
+void oscReconnect()
+{
+    DBG("OSC reconnect");
+
+    Udp.stop();
+    delay(50);
+
+    Udp.begin(settings.receivePort);
+
+    oscReadyTime = millis() + 200;
+
+    DBG2("Receive Port: ", settings.receivePort);
+
+    lastXremote = 0;
+}
+
 void oscLoop()
 {
+    if (!wifiConnected())
+    {
+        return;
+    }
+    if (millis() < oscReadyTime)
+    {
+        return;
+    }
+    
+    if (wifiConnected()){
+    if (millis() - lastXremote > 5000)
+    {
+        oscSend("/xremote");
+        lastXremote = millis();
+    }}
+
+
     OSCMessage msg;
     int size = Udp.parsePacket();
+    if (size <= 0){return;}
     if (size > 0)
     {
         DBG2("OSC Received by IP: ", Udp.remoteIP());
@@ -90,7 +125,7 @@ void oscLoop()
         if (!msg.hasError())
         {
             char address[64];
-            msg.getAddress(address);
+            msg.getAddress(address, sizeof(address));
             DBG2("OSC Address: ", address);
             for (int i = 0; i < msg.size(); i++)
 {

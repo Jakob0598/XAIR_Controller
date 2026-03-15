@@ -1,10 +1,4 @@
-#include <Arduino.h>
 #include "config.h"
-#include "settings.h"
-#include "wifi_manager.h"
-#include "osc_manager.h"
-#include "display_manager.h"
-#include "webui.h"
 
 void setup()
 {
@@ -25,6 +19,8 @@ void setup()
     oscBegin();
     DBG("OSC init");
 
+    networkBegin();
+
     displayBegin();
     DBG("Display init");
 
@@ -35,7 +31,7 @@ void setup()
 void loop() {
 
     wifiLoop();
-
+    networkLoop();
     oscLoop();
 
     displayLoop();

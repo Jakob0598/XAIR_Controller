@@ -1,3 +1,3 @@
-#include "mixer_state.h"
+#include "config.h"
 
 MixerState mixer;
