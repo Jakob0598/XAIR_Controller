@@ -13,6 +13,27 @@ void setup()
     loadSettings();
     DBG("Settings loaded");
 
+    i2cBegin();
+    DBG("I2C bus init");
+
+    displayBegin();
+    DBG("Display init");
+
+    miniDisplayBegin();
+    DBG("Mini displays init");
+
+    ledBegin();
+    DBG("LEDs init");
+
+    batterieBegin();
+    DBG("Batterie manager init");
+
+    buttonsBegin();
+    DBG("Buttons init");
+
+    faderBegin();
+    DBG("Fader init");  
+
     wifiBegin();
     DBG("WiFi init");
 
@@ -20,12 +41,11 @@ void setup()
     DBG("OSC init");
 
     networkBegin();
-
-    displayBegin();
-    DBG("Display init");
+    DBG("Network manager init");
 
     webuiBegin();
     DBG("WebUI started");
+
 }
 
 void loop() {
@@ -33,7 +53,10 @@ void loop() {
     wifiLoop();
     networkLoop();
     oscLoop();
-
+    faderLoop();
     displayLoop();
+    miniDisplayLoop();
+    encoderLoop();
+    buttonsLoop();
 
 }

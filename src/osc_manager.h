@@ -1,4 +1,5 @@
 #pragma once
+#include "config.h"
 
 void oscBegin();
 void oscLoop();

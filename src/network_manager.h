@@ -1,7 +1,6 @@
-#ifndef NETWORK_MANAGER_H
-#define NETWORK_MANAGER_H
+#pragma once
+#include "config.h"
 
 void networkBegin();
 void networkLoop();
 
-#endif

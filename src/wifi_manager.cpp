@@ -1,4 +1,4 @@
-#include "config.h"
+#include "wifi_manager.h"
 
 
 WifiState wifiState = WIFI_DISCONNECTED;

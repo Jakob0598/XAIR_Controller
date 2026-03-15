@@ -1,6 +1,5 @@
-#ifndef WIFI_MANAGER_H
-#define WIFI_MANAGER_H
-
+#pragma once
+#include "config.h"
 
 // WiFi State Machine
 enum WifiState
@@ -22,4 +21,3 @@ IPAddress wifiIP();
 String wifiSSID();
 
 
-#endif

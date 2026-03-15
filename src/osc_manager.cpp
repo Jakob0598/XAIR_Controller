@@ -1,8 +1,7 @@
-#include "config.h"
+#include "osc_manager.h"
 
-
- WiFiUDP Udp;
- IPAddress outIP;
+WiFiUDP Udp;
+IPAddress outIP;
 static unsigned long oscReadyTime = 0;
 static unsigned long lastXremote = 0;
 

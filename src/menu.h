@@ -1,27 +1,8 @@
-#ifndef MENU_H
-#define MENU_H
-
-#define MENU_MAX_CHILDREN 8
-
-struct MenuItem
-{
-    const char* name;
-
-    MenuItem* parent;
-
-    MenuItem* children[MENU_MAX_CHILDREN];
-    uint8_t childCount;
-
-    void (*action)();
-};
+#pragma once
+#include "config.h"
 
 void menuInit();
 
-void menuNext();
-void menuPrev();
-void menuEnter();
+void menuSelect();
 void menuBack();
 
-MenuItem* menuCurrent();
-
-#endif

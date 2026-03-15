@@ -1,6 +1,5 @@
 #pragma once
-
-#define TOUCH_CS -1
+#include "config.h"
 
 struct Settings {
 

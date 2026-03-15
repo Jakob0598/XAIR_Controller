@@ -1,76 +1,81 @@
-#include "config.h"
+#include "display_manager.h"
 
-TFT_eSPI tft = TFT_eSPI();
+static TFT_eSPI tft = TFT_eSPI();
 
-int freqToX(float f) {
+static bool displayReady = false;
 
-    float minF=log10(20);
-    float maxF=log10(20000);
 
-    float logF=log10(f);
 
-    return (logF-minF)/(maxF-minF)*240;
+void displayBacklight(bool state)
+{
+    if(state)
+        digitalWrite(4, HIGH);
+    else
+        digitalWrite(4, LOW);
 }
 
-int gainToY(float g) {
 
-    return (15-g)/30.0*135;
-}
 
-float peq(float f,EQBand &b) {
-
-    float A = pow(10,b.gain/40);
-    float w0 = 2*PI*b.freq/48000;
-    float alpha = sin(w0)/(2*b.q);
-
-    float num = 1+alpha*A;
-    float den = 1+alpha/A;
-
-    return num/den;
-}
-
-float computeEQ(float f) {
-
-    float g=1;
-
-    for(int i=0;i<4;i++)
-        g*=peq(f,mixer.ch[0].eq[i]);
-
-    return 20*log10(g);
-}
-
-void drawEQ() {
+void displayClear()
+{
+    if(!displayReady) return;
 
     tft.fillScreen(TFT_BLACK);
-
-    int lastx=0;
-    int lasty=gainToY(computeEQ(20));
-
-    for(int x=1;x<240;x++) {
-
-        float f=pow(10,log10(20)+((float)x/240)*(log10(20000)-log10(20)));
-
-        int y=gainToY(computeEQ(f));
-
-        tft.drawLine(lastx,lasty,x,y,TFT_GREEN);
-
-        lastx=x;
-        lasty=y;
-    }
-
 }
+
+
+
+void displayPrint(int x, int y, String text)
+{
+    if(!displayReady) return;
+
+    tft.setCursor(x, y);
+    tft.print(text);
+}
+
+
 
 void displayBegin()
 {
-    DBG("Init display");
+    pinMode(4, OUTPUT);
+    displayBacklight(true);
 
     tft.init();
     tft.setRotation(1);
 
+    tft.fillScreen(TFT_BLACK);
+
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setTextSize(2);
+
+    displayReady = true;
+
     DBG("Display ready");
+
+    tft.setCursor(10,10);
+    tft.println("XAIR Controller");
 }
 
-void displayLoop() {
 
-    drawEQ();
+
+void displayLoop()
+{
+    if(!displayReady) return;
+
+    static uint32_t lastUpdate = 0;
+
+    if(millis() - lastUpdate < 200)
+        return;
+
+    lastUpdate = millis();
+
+    // Beispielstatusanzeige
+    int bat = batterieGetPercentage();
+
+    tft.fillRect(0,200,320,40,TFT_BLACK);
+
+    tft.setCursor(10,210);
+    tft.print("Battery: ");
+    tft.print(bat);
+    tft.print("%");
 }
