@@ -80,7 +80,7 @@ void oscReconnect()
     DBG("OSC reconnect");
 
     Udp.stop();
-    delay(50);
+    delay(200);
 
     Udp.begin(settings.receivePort);
 
@@ -103,7 +103,7 @@ void oscLoop()
     }
     
     if (wifiConnected()){
-    if (millis() - lastXremote > 5000)
+    if (millis() - lastXremote > RefreshXremoteInterval)
     {
         oscSend("/xremote");
         lastXremote = millis();
@@ -126,44 +126,7 @@ void oscLoop()
             char address[64];
             msg.getAddress(address, sizeof(address));
             DBG2("OSC Address: ", address);
-            for (int i = 0; i < msg.size(); i++)
-{
-    if (msg.isInt(i))
-    {
-        int value = msg.getInt(i);
-        DBG3("Int: ", i, value);
-    }
-
-    else if (msg.isFloat(i))
-    {
-        float value = msg.getFloat(i);
-        DBG3("Float: ", i, value);
-    }
-
-    else if (msg.isDouble(i))
-    {
-        double value = msg.getDouble(i);
-        DBG3("Double: ", i, value);
-    }
-
-    else if (msg.isString(i))
-    {
-        char value[64];
-        msg.getString(i, value, 64);
-        DBG3("String: ", i, value);
-    }
-
-    else if (msg.isBoolean(i))
-    {
-        bool value = msg.getBoolean(i);
-        DBG3("Bool: ", i, value);
-    }
-
-    else
-    {
-        DBG2("Unknown type index: ", i);
-    }
-}
+            oscDispatch(msg);
         }
         else
         {

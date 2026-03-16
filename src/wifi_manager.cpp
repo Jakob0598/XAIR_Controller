@@ -43,6 +43,7 @@ void startMDNS()
         DBG("mDNS responder started");
         DBG3("Open http://", HOSTNAME, ".local");
         mdnsStarted = true;
+        MDNS.addService("http", "tcp", 80);
     }
     else
     {
@@ -93,9 +94,11 @@ void WiFiEvent(WiFiEvent_t event)
 
         case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
 
-            DBG("WiFi lost connection");
-
-            wifiState = WIFI_DISCONNECTED;
+            if (wifiState != WIFI_CONNECTING)
+            {
+                DBG("WiFi lost connection");
+                wifiState = WIFI_DISCONNECTED;
+            }
 
             break;
 

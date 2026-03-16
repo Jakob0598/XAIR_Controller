@@ -24,6 +24,14 @@ static void miniDisplayInit(uint8_t channel, Adafruit_SSD1306 &display)
 
 void miniDisplayBegin()
 {
+    DBG("Mini displays init");
+
+    if(!i2cDeviceAvailable(TCA9548A_ADDR))
+    {
+        DBG("TCA9548A not found - mini displays disabled");
+        return;
+    }
+
     miniDisplayInit(SSD1306_CH_1, display1);
     miniDisplayInit(SSD1306_CH_2, display2);
     miniDisplayInit(SSD1306_CH_3, display3);

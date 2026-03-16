@@ -4,6 +4,8 @@ static TFT_eSPI tft = TFT_eSPI();
 
 static bool displayReady = false;
 
+static float eqCurve[EQ_POINTS];
+
 
 
 void displayBacklight(bool state)
@@ -50,6 +52,10 @@ void displayBegin()
 
     displayReady = true;
 
+    DBG("Initializing EQ frequency table...");
+    eqFreqTableInit();
+    DBG("EQ frequency table initialized");
+
     DBG("Display ready");
 
     tft.setCursor(10,10);
@@ -78,4 +84,33 @@ void displayLoop()
     tft.print("Battery: ");
     tft.print(bat);
     tft.print("%");
+}
+
+void displayDrawEq(int ch)
+{
+    eqGridDraw();
+    eqPlotRender(ch, eqCurve, EQ_POINTS);
+
+    int x0 = EQ_PLOT_X;
+    int y0 = EQ_PLOT_Y + EQ_PLOT_HEIGHT / 2;
+
+    int lastX = x0;
+    int lastY = y0;
+
+    for (int i = 1; i < EQ_POINTS; i++)
+    {
+        float db = eqCurve[i];
+
+        if (db > EQ_DB_RANGE) db = EQ_DB_RANGE;
+        if (db < -EQ_DB_RANGE) db = -EQ_DB_RANGE;
+
+        int x = x0 + i;
+
+        int y = y0 - (db / EQ_DB_RANGE) * (EQ_PLOT_HEIGHT / 2);
+
+        tft.drawLine(lastX, lastY, x, y, TFT_GREEN);
+
+        lastX = x;
+        lastY = y;
+    }
 }

@@ -1,11 +1,16 @@
 #include "batterie_manager.h"
 #include "i2c_manager.h"
 
+static bool ina219Available = false;
+
 static float batterieVoltage = 0;
 static float batterieCurrent = 0;
 
 static void batterieUpdate()
 {
+    if(!ina219Available){
+        return;
+    }
     i2cSelectChannel(UPS_CH);
 
     uint16_t rawBus = i2cRead16(INA219_ADDR, 0x02);
@@ -17,19 +22,20 @@ static void batterieUpdate()
 
 void batterieBegin()
 {
+    DBG("Batterie manager init");
+
     i2cSelectChannel(UPS_CH);
 
     if(!i2cDeviceAvailable(INA219_ADDR))
     {
         DBG("INA219 not detected!");
+        ina219Available = false;
         return;
     }
 
     DBG("INA219 detected");
 
-    batterieUpdate();
-
-    DBG2("Battery voltage:", batterieVoltage);
+    ina219Available = true;
 }
 
 float batterieGetVoltage()
@@ -63,6 +69,10 @@ float batterieGetPower()
 
 int batterieGetPercentage()
 {
+    if(!ina219Available){
+        return -1;
+    }
+
     batterieUpdate();
 
     float percent =

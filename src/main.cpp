@@ -10,41 +10,74 @@ void setup()
     DBG("XAIR Controller Boot");
     DBG("================================");
 
+    DBG("Loading settings...");
     loadSettings();
     DBG("Settings loaded");
+    DBG("");
 
+    DBG("Initializing I2C bus...");
     i2cBegin();
-    DBG("I2C bus init");
+    DBG("I2C bus initialized");
+    DBG("");
 
+    DBG("Initializing display...");
     displayBegin();
-    DBG("Display init");
+    DBG("Display initialized");
+    DBG("");
 
+    DBG("Initializing mini displays...");
     miniDisplayBegin();
-    DBG("Mini displays init");
+    DBG("Mini displays initialized");
+    DBG("");
 
-    ledBegin();
-    DBG("LEDs init");
-
+    DBG("Initializing battery manager...");
     batterieBegin();
-    DBG("Batterie manager init");
+    DBG("Batterie manager initialized");
+    DBG("");
 
+    DBG("Initializing LEDs...");
+    ledBegin();
+    DBG("LEDs initialized");
+    DBG("");
+
+    DBG("Initializing buttons...");
     buttonsBegin();
-    DBG("Buttons init");
+    DBG("Buttons initialized");
+    DBG("");
 
+    DBG("Initializing encoders...");
+    encoderBegin(); 
+    DBG("Encoders initialized");
+    DBG("");
+
+    DBG("Initializing fader...");
     faderBegin();
-    DBG("Fader init");  
+    DBG("Fader initialized");
+    DBG("");
 
+    DBG("Initializing WiFi...");
     wifiBegin();
-    DBG("WiFi init");
+    DBG("WiFi initialized");
+    DBG("");
 
+    DBG("Initializing OSC...");
     oscBegin();
-    DBG("OSC init");
+    DBG("OSC initialized");
+    DBG("");
 
+    DBG("Initializing network manager...");
     networkBegin();
-    DBG("Network manager init");
+    DBG("Network manager initialized");
+    DBG("");
 
+    DBG("Initializing WebUI...");
     webuiBegin();
-    DBG("WebUI started");
+    DBG("WebUI initialized");
+    DBG("");
+
+    DBG("================================");
+    DBG("Initialization complete");
+    DBG("================================");
 
 }
 

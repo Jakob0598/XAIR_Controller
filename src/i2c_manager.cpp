@@ -20,9 +20,12 @@ void i2cSelectChannel(uint8_t channel)
     Wire.beginTransmission(TCA9548A_ADDR);
     Wire.write(1 << channel);
 
-    if(Wire.endTransmission() != 0)
+    uint8_t err = Wire.endTransmission();
+
+    if(err != 0)
     {
         DBG2("TCA channel switch failed:", channel);
+        return;
     }
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#define HOSTNAME "XAIR_Controller"
+#define HOSTNAME "XAIR-Controller"
 
 #define DEBUG_SERIAL true
 
@@ -20,7 +20,32 @@
 #define WIFI_RECONNECT_INTERVAL 2000
 #define WIFI_AP_TIMEOUT 30000
 
-#define OSC_BUFFER_SIZE 256
+#define OSC_BUFFER_SIZE 512
+
+#define RefreshXremoteInterval 10000
+
+//EQ-Definitions for display
+#define EQ_SAMPLE_RATE     48000
+
+#define EQ_POINTS          TFT_WIDTH
+
+#define EQ_MIN_FREQ        20.0f
+#define EQ_MAX_FREQ        20000.0f
+
+#define EQ_DB_RANGE        18.0f
+
+#define EQ_PLOT_X          0
+#define EQ_PLOT_Y          40
+
+#define EQ_PLOT_WIDTH      TFT_WIDTH
+#define EQ_PLOT_HEIGHT     100
+
+#define EQ_GRID_COLOR TFT_DARKGREY
+#define EQ_CURVE_COLOR TFT_GREEN
+#define EQ_ZERO_DB_COLOR TFT_LIGHTGREY
+
+#define EQ_GRID_FREQ_LINES 10
+#define EQ_GRID_DB_LINES   7
 
 
 //ST7789:
@@ -99,6 +124,8 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "settings.h"
 #include "wifi_manager.h"
@@ -115,5 +142,15 @@
 #include "batterie_manager.h"
 #include "i2c_manager.h"
 #include "mini_display_manager.h"
+#include "xair_parser.h"
+#include "osc_dispatcher.h" 
+#include "biquad.h"
+#include "eq_plot_engine.h"
+#include "eq_grid.h"
+#include "eq_freq_table.h"
+
+
+
+
 
 
