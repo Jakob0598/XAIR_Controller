@@ -1,30 +1,36 @@
 #include "batterie_manager.h"
-#include "i2c_manager.h"
 
 static bool ina219Available = false;
 
 static float batterieVoltage = 0;
 static float batterieCurrent = 0;
+static float batteriePower   = 0;
+
 
 static void batterieUpdate()
 {
-    if(!ina219Available){
+    if(!ina219Available)
         return;
-    }
-    i2cSelectChannel(UPS_CH);
 
+    // Bus Voltage Register
     uint16_t rawBus = i2cRead16(INA219_ADDR, 0x02);
-    uint16_t rawCurrent = i2cRead16(INA219_ADDR, 0x04);
 
-    batterieVoltage = (rawBus >> 3) * 0.004;
-    batterieCurrent = rawCurrent * 0.001;
+    // Current Register
+    int16_t rawCurrent = (int16_t)i2cRead16(INA219_ADDR, 0x04);
+
+    // laut Datenblatt
+    batterieVoltage = (rawBus >> 3) * 0.004f;
+
+    // Calibration 32V 2A -> 100uA per bit
+    batterieCurrent = rawCurrent * 0.0001f;
+
+    batteriePower = batterieVoltage * batterieCurrent;
 }
+
 
 void batterieBegin()
 {
     DBG("Batterie manager init");
-
-    i2cSelectChannel(UPS_CH);
 
     if(!i2cDeviceAvailable(INA219_ADDR))
     {
@@ -36,48 +42,60 @@ void batterieBegin()
     DBG("INA219 detected");
 
     ina219Available = true;
+
+    // Calibration Register
+    i2cWrite16(INA219_ADDR, 0x05, 4096);
+
+    // Config Register
+    uint16_t config =
+        0x2000 | // 32V range
+        0x1800 | // Gain 8
+        0x0180 | // Bus ADC 12bit
+        0x0078 | // Shunt ADC 12bit 128 samples
+        0x0007;  // continuous mode
+
+    i2cWrite16(INA219_ADDR, 0x00, config);
+
+    DBG("INA219 initialized");
+
+    batterieGetVoltage();
+    batterieGetCurrent();
+    batterieGetPower();
+    batterieGetPercentage();
 }
+
 
 float batterieGetVoltage()
 {
     batterieUpdate();
-
     DBG2("Battery voltage:", batterieVoltage);
-
     return batterieVoltage;
 }
 
 float batterieGetCurrent()
 {
     batterieUpdate();
-
     DBG2("Battery current:", batterieCurrent);
-
     return batterieCurrent;
 }
 
 float batterieGetPower()
 {
     batterieUpdate();
-
-    float power = batterieVoltage * batterieCurrent;
-
-    DBG2("Battery power:", power);
-
-    return power;
+    DBG2("Battery power:", batteriePower);
+    return batteriePower;
 }
 
 int batterieGetPercentage()
 {
-    if(!ina219Available){
+    if(!ina219Available)
         return -1;
-    }
 
     batterieUpdate();
 
     float percent =
         (batterieVoltage - BATTERY_MIN_VOLTAGE) /
-        (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE) * 100.0;
+        (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE) * 100.0f;
 
     percent = constrain(percent, 0, 100);
 

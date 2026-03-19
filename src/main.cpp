@@ -1,5 +1,7 @@
 #include "config.h"
 
+int timer=0;
+
 void setup()
 {
     Serial.begin(115200);
@@ -33,6 +35,11 @@ void setup()
     DBG("Initializing battery manager...");
     batterieBegin();
     DBG("Batterie manager initialized");
+    DBG("");
+
+    DBG("Initializing mixer defaults...");
+    mixerInitDefaults();
+    DBG("Mixer defaults initialized");
     DBG("");
 
     DBG("Initializing LEDs...");
@@ -79,17 +86,36 @@ void setup()
     DBG("Initialization complete");
     DBG("================================");
 
+    displayStartupAnimation();
+    miniDisplayStartupAnimation();
+    timer = millis();
 }
+
 
 void loop() {
 
     wifiLoop();
     networkLoop();
     oscLoop();
+
+    
+
     faderLoop();
     displayLoop();
     miniDisplayLoop();
-    encoderLoop();
-    buttonsLoop();
+    //encoderLoop();
+    //buttonsLoop();
 
+    if(millis() - timer > 2000)
+    {
+        timer = millis();
+        //DBG("Requesting full channel data for channel 1...");
+        //xairRequestChannelFull(1);
+        //faderSet(0, channels[1].fader * 4095);
+
+
+        displayDrawEq(1);
+    }
+    
 }
+

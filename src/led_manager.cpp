@@ -16,8 +16,8 @@ void ledBegin()
 {
     for (int i = 0; i < 4; i++)
     {
-        pinMode(ledPins[i], OUTPUT);
-        digitalWrite(ledPins[i], LOW);
+        mcp.pinMode(ledPins[i], OUTPUT);
+        mcp.digitalWrite(ledPins[i], LOW);
         ledState[i] = false;
     }
 }
@@ -29,7 +29,7 @@ void ledSet(uint8_t index, bool state)
     if (index >= 4) return;
 
     ledState[index] = state;
-    digitalWrite(ledPins[index], state);
+    mcp.digitalWrite(ledPins[index], state);
 }
 
 
@@ -39,7 +39,7 @@ void ledToggle(uint8_t index)
     if (index >= 4) return;
 
     ledState[index] = !ledState[index];
-    digitalWrite(ledPins[index], ledState[index]);
+    mcp.digitalWrite(ledPins[index], ledState[index]);
 }
 
 

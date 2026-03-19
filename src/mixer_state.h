@@ -2,27 +2,33 @@
 
 #include "config.h"
 
-#define MAX_CHANNELS 16
-#define MAX_BUSES 6
-#define MAX_EQ_BANDS 4
+#define MAX_CHANNELS 17   // 1-based
+#define MAX_BUSES 7
+#define MAX_EQ_BANDS 5
 #define MAX_METERS 64
 
+extern int mixerMaxChannels;
+extern int mixerMaxBuses;
+void mixerSetLimits(int channels, int buses);
 
-/* ============================= */
-/*           EQ BAND             */
-/* ============================= */
+enum EqType
+{
+    EQ_LCUT,
+    EQ_LSHV,
+    EQ_PEQ,
+    EQ_VEQ,
+    EQ_HSHV,
+    EQ_HCUT
+};
 
 struct EqBand
 {
     float freq;
     float gain;
     float q;
+
+    EqType type;   
 };
-
-
-/* ============================= */
-/*         COMPRESSOR            */
-/* ============================= */
 
 struct Compressor
 {
@@ -32,20 +38,10 @@ struct Compressor
     float release;
 };
 
-
-/* ============================= */
-/*            GATE               */
-/* ============================= */
-
 struct Gate
 {
     float threshold;
 };
-
-
-/* ============================= */
-/*          CHANNEL              */
-/* ============================= */
 
 struct ChannelState
 {
@@ -57,6 +53,7 @@ struct ChannelState
 
     float hpfFreq;
     bool hpfOn;
+    bool eqOn;
 
     EqBand eq[MAX_EQ_BANDS];
     Compressor comp;
@@ -67,38 +64,24 @@ struct ChannelState
     char name[32];
 };
 
-
-/* ============================= */
-/*             BUS               */
-/* ============================= */
-
 struct BusState
 {
     float fader;
 };
 
-
-/* ============================= */
-/*          GLOBAL STATE         */
-/* ============================= */
-
 extern ChannelState channels[MAX_CHANNELS];
 extern BusState buses[MAX_BUSES];
 
 extern float mainFader;
-
 extern float meters[MAX_METERS];
 
-
-/* ============================= */
-/*        SET FUNCTIONS          */
-/* ============================= */
-
+// SETTERS (jetzt 1-based!)
 void mixerSetFader(int ch, float value);
 void mixerSetMute(int ch, bool value);
 void mixerSetPan(int ch, float value);
 void mixerSetGain(int ch, float value);
 
+void mixerSetEqOn(int ch, bool value);
 void mixerSetEqGain(int ch, int band, float value);
 void mixerSetEqFreq(int ch, int band, float value);
 void mixerSetEqQ(int ch, int band, float value);
@@ -121,3 +104,6 @@ void mixerSetMainFader(float value);
 void mixerSetMeter(int index, float value);
 
 void mixerSetName(int ch, const char* name);
+
+void mixerSetMixerModel(const char* model);
+void mixerSetMixerName(const char* name);

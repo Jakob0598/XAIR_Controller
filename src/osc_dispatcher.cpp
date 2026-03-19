@@ -27,22 +27,37 @@ void oscRegisterRoutes()
 
     addRoute("/ch/", xairHandleChannel);
     addRoute("/bus/", xairHandleBus);
-    addRoute("/main/", xairHandleMain);
+    addRoute("/lr/", xairHandleMain);
     addRoute("/meters", xairHandleMeters);
+    addRoute("/xinfo", xairHandleGlobal);
+    addRoute("/status", xairHandleGlobal);
+    
+
 }
 
-void oscDispatch(OSCMessage& msg)
+void oscDispatch(OSCMessage& msg, char address[OSC_BUFFER_SIZE])
 {
-    char address[64];
-
-    msg.getAddress(address, sizeof(address));
+    DBG2("Dispatching OSC Address:", address);
 
     for (int i = 0; i < routeCount; i++)
     {
-        if (strncmp(address, routes[i].prefix, strlen(routes[i].prefix)) == 0)
+        const char* prefix = routes[i].prefix;
+        size_t len = strlen(prefix);
+
+        if (strncmp(address, prefix, len) == 0)
         {
+            //  Wenn Prefix NICHT mit '/' endet → Boundary prüfen
+            if (prefix[len - 1] != '/')
+            {
+                if (!(address[len] == '/' || address[len] == '\0'))
+                    continue;
+            }
+
+            DBG2("Matched route:", prefix);
             routes[i].handler(msg, address);
             return;
         }
     }
+
+    DBG("No OSC route matched!");
 }

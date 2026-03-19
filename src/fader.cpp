@@ -1,177 +1,172 @@
 #include "fader.h"
 
-#define MAX_FADERS 3
+#define FADER_DEADBAND 20
+#define MAX_PWM 255
 
-MotorFader faders[MAX_FADERS];
-uint8_t faderCount = 0;
+MotorFader faders[FADER_COUNT];
 
-
-
-void MotorFader::begin(uint8_t adcPin, uint8_t pinA, uint8_t pinB)
+void MotorFader::begin(uint8_t adcPin, uint8_t pinA, uint8_t pinB, uint8_t chA, uint8_t chB)
 {
     _adcPin = adcPin;
     _pinA = pinA;
     _pinB = pinB;
+    _chA = chA;
+    _chB = chB;
 
-    pinMode(_pinA, OUTPUT);
-    pinMode(_pinB, OUTPUT);
+    ledcSetup(_chA, FADER_PWM_FREQ, FADER_PWM_RES);
+    ledcSetup(_chB, FADER_PWM_FREQ, FADER_PWM_RES);
 
-    _filtered = analogRead(_adcPin);
+    ledcAttachPin(_pinA, _chA);
+    ledcAttachPin(_pinB, _chB);
+
+    uint16_t raw = analogRead(_adcPin);
+
+    _filtered = raw;
+    _position = raw;
+    _target = raw;
+
+    lastRaw = raw;
 }
-
-
-
-uint16_t MotorFader::getPosition()
-{
-    return (uint16_t)_position;
-}
-
-
 
 void MotorFader::setTarget(uint16_t value)
 {
-    _target = value;
+    _target = constrain(value, 0, 4095);
 }
 
-
+uint16_t MotorFader::getPosition()
+{
+    return _position;
+}
 
 void MotorFader::motorDrive(int pwm)
 {
-    pwm = constrain(pwm, -255, 255);
+    pwm = constrain(pwm, -MAX_PWM, MAX_PWM);
 
     if (pwm > 0)
     {
-        analogWrite(_pinA, pwm);
-        analogWrite(_pinB, 0);
+        ledcWrite(_chA, pwm);
+        ledcWrite(_chB, 0);
     }
     else if (pwm < 0)
     {
-        analogWrite(_pinA, 0);
-        analogWrite(_pinB, -pwm);
+        ledcWrite(_chA, 0);
+        ledcWrite(_chB, -pwm);
     }
     else
     {
-        analogWrite(_pinA, 0);
-        analogWrite(_pinB, 0);
+        ledcWrite(_chA, 0);
+        ledcWrite(_chB, 0);
     }
 }
-
-
 
 void MotorFader::update()
 {
     uint16_t raw = analogRead(_adcPin);
-    // ---------- ADC FILTER ----------
-    _filtered = (_filtered * 7 + raw * 3) / 10;
+
+    // stabiles Filtering
+    _filtered = _filtered * 0.6f + raw * 0.4f;
     _position = _filtered;
 
-
-
-    // ---------- TOUCH DETECTION ----------
-    int movement = abs(raw - lastRaw);
-    lastRaw = raw;
-
-    if (movement > 8)
-    {
-        lastMoveTime = millis();
-        touched = true;
-    }
-
-    if (millis() - lastMoveTime > 150)
-    {
-        touched = false;
-    }
-
-    if (touched)
-    {
-        motorDrive(0);
-        return;
-    }
-
-
-
-    // ---------- PID CONTROL ----------
     float error = _target - _position;
+    float absError = abs(error);
 
-    integral += error;
-    float derivative = error - lastError;
-
-    float output = kp * error +
-                   ki * integral +
-                   kd * derivative;
-
-    lastError = error;
-
-
-
-    // deadband
-    if (abs(error) < 5)
+    // ✅ große Deadzone (WICHTIG!)
+    if (absError < 20)
     {
         motorDrive(0);
         return;
     }
 
+    int pwm = 0;
 
+    // ✅ grobe Bewegung (schnell)
+    if (absError > 300)
+    {
+        pwm = 180;
+    }
+    // ✅ mittlere Zone
+    else if (absError > 100)
+    {
+        pwm = 120;
+    }
+    // ✅ fein bewegen
+    else if (absError > 40)
+    {
+        pwm = 80;
+    }
+    else
+    {
+        pwm = 50;
+    }
 
-    output = constrain(output, -255, 255);
+    // Richtung setzen
+    if (error < 0)
+        pwm = -pwm;
 
-    motorDrive((int)output);
+    motorDrive(pwm);
 }
-
-
-
 
 void faderBegin()
 {
-    faderCount = 0;
+    faders[0].begin(FADER_1_PIN, FADER_MOTOR_1_A_PIN, FADER_MOTOR_1_B_PIN, FADER1_CH_A, FADER1_CH_B);
+    faders[1].begin(FADER_2_PIN, FADER_MOTOR_2_A_PIN, FADER_MOTOR_2_B_PIN, FADER2_CH_A, FADER2_CH_B);
+    faders[2].begin(FADER_3_PIN, FADER_MOTOR_3_A_PIN, FADER_MOTOR_3_B_PIN, FADER3_CH_A, FADER3_CH_B);
 
-    faders[faderCount++].begin(
-        FADER_1_PIN,
-        FADER_MOTOR_1_A_PIN,
-        FADER_MOTOR_1_B_PIN
-    );
+    DBG("Faders initialized (LEDC)");
 
-    faders[faderCount++].begin(
-        FADER_2_PIN,
-        FADER_MOTOR_2_A_PIN,
-        FADER_MOTOR_2_B_PIN
-    );
-
-    faders[faderCount++].begin(
-        FADER_3_PIN,
-        FADER_MOTOR_3_A_PIN,
-        FADER_MOTOR_3_B_PIN
-    );
-
-    DBG2("Faders initialized:", faderCount);
+    delay(200);
+    faderStartupAnimation();
 }
-
-
 
 void faderLoop()
 {
-    for (int i = 0; i < faderCount; i++)
+    for (int i = 0; i < FADER_COUNT; i++)
     {
         faders[i].update();
     }
 }
 
-
-
 void faderSet(uint8_t index, uint16_t value)
 {
-    DBG3("faderSet: ", index, value);
-
-    if (index >= faderCount) return;
+    if (index >= FADER_COUNT) return;
 
     faders[index].setTarget(value);
 }
 
-
-
 uint16_t faderGet(uint8_t index)
 {
-    if (index >= faderCount) return 0;
+    if (index >= FADER_COUNT) return 0;
 
     return faders[index].getPosition();
+}
+
+void faderStartupAnimation()
+{
+    DBG("Fader startup animation");
+
+    // hoch
+    for(int i=0;i<FADER_COUNT;i++)
+        faderSet(i,4095);
+
+    uint32_t t = millis();
+    while(millis() - t < 1200)
+        faderLoop();
+
+    // runter
+    for(int i=0;i<FADER_COUNT;i++)
+        faderSet(i,0);
+
+    t = millis();
+    while(millis() - t < 1200)
+        faderLoop();
+
+    // mitte
+    for(int i=0;i<FADER_COUNT;i++)
+        faderSet(i,2048);
+
+    t = millis();
+    while(millis() - t < 800)
+        faderLoop();
+
+    DBG("Fader startup done");
 }

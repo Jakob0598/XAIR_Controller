@@ -6,6 +6,14 @@ static Adafruit_SSD1306 display3(MINI_DISPLAY_WIDTH, MINI_DISPLAY_HEIGHT, &Wire)
 
 static void miniDisplayInit(uint8_t channel, Adafruit_SSD1306 &display)
 {
+    DBG("Mini displays init");
+
+    if(!tcaAvailable)
+    {
+        DBG("TCA9548A not found - mini displays disabled");
+        return;
+    }
+
     i2cSelectChannel(channel);
 
     if(!display.begin(SSD1306_SWITCHCAPVCC, SSD1306_ADDR))
@@ -19,6 +27,9 @@ static void miniDisplayInit(uint8_t channel, Adafruit_SSD1306 &display)
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0,0);
+    display.print("Display:");
+    display.print(channel);
     display.display();
 }
 
@@ -35,10 +46,17 @@ void miniDisplayBegin()
     miniDisplayInit(SSD1306_CH_1, display1);
     miniDisplayInit(SSD1306_CH_2, display2);
     miniDisplayInit(SSD1306_CH_3, display3);
+
 }
 
 void miniDisplayText(uint8_t displayIndex, String text)
 {
+    if(!tcaAvailable)
+    {
+        DBG("TCA9548A not found - mini displays disabled");
+        return;
+    }
+
     Adafruit_SSD1306* display;
 
     if(displayIndex == 0) display = &display1;
@@ -61,4 +79,92 @@ void miniDisplayText(uint8_t displayIndex, String text)
 void miniDisplayLoop()
 {
     // später UI
+    
+    miniDisplayText(2, "FaderXAir:" + String(channels[1].fader) + "%");
+
+    
+    miniDisplayText(0, "Fader 1: " + String(faderGet(0)) + "%");
+    
+    miniDisplayText(1, "EQ: " + String(channels[1].eq[1].gain, 1) + "dB");
+
+}
+
+void miniDisplayStartupAnimation()
+{
+    if(!tcaAvailable) return;
+
+    DBG("Mini display startup animation");
+
+    Adafruit_SSD1306* displays[3] = { &display1, &display2, &display3 };
+    uint8_t channels[3] = { SSD1306_CH_1, SSD1306_CH_2, SSD1306_CH_3 };
+
+    // 1. Clear + Titel
+    for(int i=0;i<3;i++)
+    {
+        i2cSelectChannel(channels[i]);
+
+        displays[i]->clearDisplay();
+        displays[i]->setTextSize(1);
+        displays[i]->setCursor(0,0);
+        displays[i]->print("CH ");
+        displays[i]->print(i+1);
+        displays[i]->display();
+    }
+
+    delay(200);
+
+    // 2. Scan Animation
+    for(int x=0;x<MINI_DISPLAY_WIDTH;x+=4)
+    {
+        for(int i=0;i<3;i++)
+        {
+            i2cSelectChannel(channels[i]);
+
+            displays[i]->drawLine(x, 10, x, 30, SSD1306_WHITE);
+            displays[i]->display();
+        }
+        delay(5);
+    }
+
+    delay(200);
+
+    // 3. Level Meter Animation
+    for(int level=0; level<MINI_DISPLAY_WIDTH; level+=6)
+    {
+        for(int i=0;i<3;i++)
+        {
+            i2cSelectChannel(channels[i]);
+
+            displays[i]->fillRect(0, 20, level, 8, SSD1306_WHITE);
+            displays[i]->display();
+        }
+        delay(10);
+    }
+
+    delay(200);
+
+    // 4. READY Text
+    for(int i=0;i<3;i++)
+    {
+        i2cSelectChannel(channels[i]);
+
+        displays[i]->clearDisplay();
+        displays[i]->setCursor(0,10);
+        displays[i]->setTextSize(2);
+        displays[i]->print("OK");
+        displays[i]->display();
+    }
+
+    delay(400);
+
+    // 5. Clean Screen
+    for(int i=0;i<3;i++)
+    {
+        i2cSelectChannel(channels[i]);
+
+        displays[i]->clearDisplay();
+        displays[i]->display();
+    }
+
+    DBG("Mini display animation done");
 }

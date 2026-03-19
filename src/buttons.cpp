@@ -25,7 +25,7 @@ void buttonsBegin()
 {
     for(int i = 0; i < BUTTON_COUNT; i++)
     {
-        pinMode(buttonPins[i], INPUT_PULLUP);
+        mcp.pinMode(buttonPins[i], INPUT_PULLUP);
 
         buttonState[i] = false;
         lastButtonState[i] = false;
@@ -46,7 +46,7 @@ void buttonsUpdate()
 
     for(int i = 0; i < BUTTON_COUNT; i++)
     {
-        bool reading = !digitalRead(buttonPins[i]);
+        bool reading = !mcp.digitalRead(buttonPins[i]);
 
         if(reading != lastButtonState[i])
         {
