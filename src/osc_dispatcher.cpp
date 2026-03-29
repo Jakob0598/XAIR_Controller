@@ -26,8 +26,10 @@ void oscRegisterRoutes()
     routeCount = 0;
 
     addRoute("/ch/", xairHandleChannel);
+    addRoute("/headamp/", xairHandleHeadamp);
     addRoute("/bus/", xairHandleBus);
     addRoute("/lr/", xairHandleMain);
+    addRoute("/config/", xairHandleConfig);
     addRoute("/meters", xairHandleMeters);
     addRoute("/xinfo", xairHandleGlobal);
     addRoute("/status", xairHandleGlobal);

@@ -1,11 +1,13 @@
 #include "config.h"
 
-int timer=0;
+static uint32_t meterTimer = 0;   // reserviert für zukünftige Nutzung
 
 void setup()
 {
+    if(DEBUG_SERIAL){
     Serial.begin(115200);
     delay(1000);
+    }
 
     DBG("");
     DBG("================================");
@@ -52,15 +54,25 @@ void setup()
     DBG("Buttons initialized");
     DBG("");
 
-    DBG("Initializing encoders...");
-    encoderBegin(); 
-    DBG("Encoders initialized");
+    DBG("Initializing encoder...");
+    encoderBegin();
+    DBG("Encoder initialized");
     DBG("");
 
-    DBG("Initializing fader...");
+    // ========== KOORDINIERTE BOOT-ANIMATION ==========
+    // Phase 1+2: Logo, Waveform, LED-Chase, Mini-Display-Nachrichten
+    // Endet mit "Calibrating..." Anzeige
+    displayStartupAnimation();
+
+    // Phase 3: Fader-Kalibrierung (blockierend, aber Display zeigt Fortschritt)
+    DBG("Initializing faders...");
     faderBegin();
-    DBG("Fader initialized");
+    faderCalibrateAll();
+    DBG("Faders initialized & calibrated");
     DBG("");
+
+    // Phase 4: "READY" Flash + Aufräumen
+    displayBootComplete();
 
     DBG("Initializing WiFi...");
     wifiBegin();
@@ -86,36 +98,22 @@ void setup()
     DBG("Initialization complete");
     DBG("================================");
 
-    displayStartupAnimation();
-    miniDisplayStartupAnimation();
-    timer = millis();
+    meterTimer = millis();
+
+    menuBegin();
 }
 
-
-void loop() {
-
+void loop()
+{
     wifiLoop();
     networkLoop();
     oscLoop();
-
-    
+    webuiUpdateMixerInfo();
 
     faderLoop();
     displayLoop();
     miniDisplayLoop();
-    //encoderLoop();
-    //buttonsLoop();
+    buttonsLoop();
+    menuLoop();
 
-    if(millis() - timer > 2000)
-    {
-        timer = millis();
-        //DBG("Requesting full channel data for channel 1...");
-        //xairRequestChannelFull(1);
-        //faderSet(0, channels[1].fader * 4095);
-
-
-        displayDrawEq(1);
-    }
-    
 }
-

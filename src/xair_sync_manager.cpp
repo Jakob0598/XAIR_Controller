@@ -27,6 +27,7 @@ static int bus = 1;
 static int sendBus = 1;
 static int band = 1;
 static int step = 0;
+static int linkPair = 1;
 
 // 🔥 FINAL STATE
 static int finalStep = 0;
@@ -87,7 +88,8 @@ void xairRequestStart()
     bus = 1;
     sendBus = 1;
     band = 1;
-    step = 0;
+    step = -2;    // Start mit /xinfo → /status → dann Channels
+    linkPair = 1;
     finalStep = 0;
 
     lastSendTime = 0;
@@ -104,8 +106,6 @@ bool xairRequestRunning()
 
 void xairRequestProcess()
 {
-    if (syncDone) return;
-
     if (millis() - lastSendTime < REQUEST_INTERVAL)
         return;
 
@@ -115,7 +115,7 @@ void xairRequestProcess()
     char addr[64];
 
     // =========================
-    // SINGLE REQUESTS
+    // SINGLE REQUESTS (immer verarbeiten, auch nach syncDone)
     // =========================
     if (singleRequestActive)
     {
@@ -125,19 +125,34 @@ void xairRequestProcess()
             {
                 switch(singleStep)
                 {
-                    case 0: sprintf(addr, "/ch/%02d/mix/fader", singleCh); break;
-                    case 1: sprintf(addr, "/ch/%02d/mix/on", singleCh); break;
-                    case 2: sprintf(addr, "/ch/%02d/mix/pan", singleCh); break;
-                    case 3: sprintf(addr, "/ch/%02d/preamp/gain", singleCh); break;
-                    case 4: sprintf(addr, "/ch/%02d/config/name", singleCh); break;
-                    case 5: sprintf(addr, "/ch/%02d/preamp/hpf", singleCh); break;
-                    case 6: sprintf(addr, "/ch/%02d/preamp/hpon", singleCh); break;
+                    case 0: sprintf(addr, "/ch/%02d/mix/fader",      singleCh); break;
+                    case 1: sprintf(addr, "/ch/%02d/mix/on",         singleCh); break;
+                    case 2: sprintf(addr, "/ch/%02d/mix/pan",        singleCh); break;
+                    case 3: sprintf(addr, "/headamp/%02d/gain",      singleCh); break;
+                    case 4: sprintf(addr, "/ch/%02d/config/name",    singleCh); break;
+                    case 5: sprintf(addr, "/ch/%02d/preamp/hpf",     singleCh); break;
+                    case 6: sprintf(addr, "/ch/%02d/preamp/hpon",    singleCh); break;
+                    case 7: sprintf(addr, "/headamp/%02d/phantom",   singleCh); break;
+                    case 8: sprintf(addr, "/ch/%02d/preamp/invert",  singleCh); break;
+                    case 9: sprintf(addr, "/ch/%02d/insert/sel",     singleCh); break;
+                    case 10:sprintf(addr, "/ch/%02d/insert/on",      singleCh); break;
+                    case 11:
+                    {
+                        if (singleCh % 2 == 1)
+                            sprintf(addr, "/config/chlink/%d-%d", singleCh, singleCh + 1);
+                        else
+                        {
+                            singleStep++;
+                            return;
+                        }
+                        break;
+                    }
                 }
 
                 if (!safeSend(addr)) return;
 
                 singleStep++;
-                if (singleStep > 6)
+                if (singleStep > 11)
                     singleRequestActive = false;
 
                 return;
@@ -198,6 +213,30 @@ void xairRequestProcess()
     }
 
     // =========================
+    // FULL SYNC – nur wenn nicht bereits abgeschlossen
+    // =========================
+    if (syncDone) return;
+    if (!requestActive) return;
+
+    if (step == -2)
+    {
+        // Schritt -2: /xinfo anfordern
+        if (!safeSend("/xinfo")) return;
+        step = -1;
+        return;
+    }
+
+    if (step == -1)
+    {
+        // Schritt -1: /status anfordern (triggert weitere /xinfo Antwort)
+        if (!safeSend("/status")) return;
+        step = 0;
+        // Kurze Pause damit XAir antworten kann bevor Channels abgefragt werden
+        lastSendTime = millis() + 150;
+        return;
+    }
+
+    // =========================
     // FULL SYNC CHANNELS
     // =========================
     if (!requestActive) return;
@@ -206,15 +245,36 @@ void xairRequestProcess()
     {
         switch(step)
         {
-            case 0: sprintf(addr, "/ch/%02d/mix/fader", ch); break;
-            case 1: sprintf(addr, "/ch/%02d/mix/on", ch); break;
-            case 2: sprintf(addr, "/ch/%02d/mix/pan", ch); break;
-            case 3: sprintf(addr, "/ch/%02d/preamp/gain", ch); break;
-            case 4: sprintf(addr, "/ch/%02d/config/name", ch); break;
-            case 5: sprintf(addr, "/ch/%02d/preamp/hpf", ch); break;
-            case 6: sprintf(addr, "/ch/%02d/preamp/hpon", ch); break;
+            case 0: sprintf(addr, "/ch/%02d/mix/fader",       ch); break;
+            case 1: sprintf(addr, "/ch/%02d/mix/on",          ch); break;
+            case 2: sprintf(addr, "/ch/%02d/mix/pan",         ch); break;
+            case 3: sprintf(addr, "/headamp/%02d/gain",       ch); break;
+            case 4: sprintf(addr, "/ch/%02d/config/name",     ch); break;
+            case 5: sprintf(addr, "/ch/%02d/preamp/hpf",      ch); break;
+            case 6: sprintf(addr, "/ch/%02d/preamp/hpon",     ch); break;
+            case 7: sprintf(addr, "/headamp/%02d/phantom",    ch); break;
+            case 8: sprintf(addr, "/ch/%02d/preamp/invert",   ch); break;
+            case 9: sprintf(addr, "/ch/%02d/insert/sel",      ch); break;
+            case 10:sprintf(addr, "/ch/%02d/insert/on",       ch); break;
 
-            case 7:
+            case 11:
+            {
+                // Stereo Link: globaler Pfad /config/chlink/X-Y
+                // Nur für ungerade Kanäle anfragen (1-2, 3-4, 5-6, ...)
+                if (ch % 2 == 1)
+                {
+                    sprintf(addr, "/config/chlink/%d-%d", ch, ch + 1);
+                }
+                else
+                {
+                    // Gerade Kanäle überspringen – Link kommt über den ungeraden Partner
+                    step++;
+                    return;
+                }
+                break;
+            }
+
+            case 12:
                 sprintf(addr, "/ch/%02d/mix/%02d/level", ch, sendBus);
                 if (!safeSend(addr)) return;
 
@@ -226,12 +286,12 @@ void xairRequestProcess()
                 }
                 return;
 
-            case 8: sprintf(addr, "/ch/%02d/eq/on", ch); break;
-            case 9: sprintf(addr, "/ch/%02d/eq/%d/type", ch, band); break;
-            case 10: sprintf(addr, "/ch/%02d/eq/%d/g", ch, band); break;
-            case 11: sprintf(addr, "/ch/%02d/eq/%d/f", ch, band); break;
+            case 13: sprintf(addr, "/ch/%02d/eq/on", ch); break;
+            case 14: sprintf(addr, "/ch/%02d/eq/%d/type", ch, band); break;
+            case 15: sprintf(addr, "/ch/%02d/eq/%d/g", ch, band); break;
+            case 16: sprintf(addr, "/ch/%02d/eq/%d/f", ch, band); break;
 
-            case 12:
+            case 17:
                 sprintf(addr, "/ch/%02d/eq/%d/q", ch, band);
                 if (!safeSend(addr)) return;
 
@@ -244,7 +304,7 @@ void xairRequestProcess()
                 }
                 else
                 {
-                    step = 9;
+                    step = 14;
                 }
                 return;
         }

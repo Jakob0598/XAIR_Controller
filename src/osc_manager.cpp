@@ -11,6 +11,10 @@ static bool oscAlive = false;
 
 bool mixerDetected = false;
 
+// Timeout: wenn >12s keine OSC-Antwort → Verbindung verloren
+#define OSC_ALIVE_TIMEOUT 12000
+static unsigned long lastOscRxTime = 0;
+
 bool isSystemReady()
 {
     if (WiFi.status() != WL_CONNECTED){
@@ -20,6 +24,27 @@ bool isSystemReady()
         return false;
     }
     return true;
+}
+
+// Wird aufgerufen wenn Verbindung verloren geht
+static void oscHandleDisconnect()
+{
+    if (!oscAlive) return;  // bereits disconnected
+
+    DBG("OSC: XAir connection lost (timeout)");
+
+    oscAlive = false;
+    systemReady = false;
+    xairSynced = false;
+    mixerDetected = false;
+
+    // Mixer-Name/Model leeren damit Statusbar reagiert
+    mixerName[0] = '\0';
+    mixerModel[0] = '\0';
+
+    // Alle Meter auf 0 setzen
+    for (int i = 0; i < MAX_METERS; i++)
+        mixerSetMeter(i, 0.0f);
 }
 
 void oscBroadcast(const char* address)
@@ -72,6 +97,19 @@ void oscSendInt(const char* address, int value)
     DBG3("oscSendInt: ",address, value);
 }
 
+void oscSendString(const char* address, const char* value)
+{
+    if (!wifiConnected()) return;
+    OSCMessage msg(address);
+    msg.add(value);
+
+    Udp.beginPacket(outIP, settings.sendPort);
+    msg.send(Udp);
+    Udp.endPacket();
+    msg.empty();
+    DBG3("oscSendString: ", address, value);
+}
+
 void oscBegin()
 {
     outIP = IPAddress(
@@ -108,24 +146,50 @@ void oscReconnect()
     xairSynced = false;
     oscAlive = false;
     mixerDetected = false;
+    lastOscRxTime = millis();
+
+    // Name/Model leeren damit Statusbar sauber neu startet
+    mixerName[0]  = '\0';
+    mixerModel[0] = '\0';
+
+    // Meter auf 0
+    for (int i = 0; i < MAX_METERS; i++)
+        mixerSetMeter(i, 0.0f);
 }
 
 void oscLoop()
 {
     if (!wifiConnected()){
+        // WiFi verloren → sofort alles zurücksetzen
+        if (oscAlive) oscHandleDisconnect();
         return;
     }
     if (millis() < oscReadyTime + 200){
         return;
     }
+
+    // Timeout-Prüfung: XAir antwortet nicht mehr
+    if (oscAlive && (millis() - lastOscRxTime > OSC_ALIVE_TIMEOUT))
+    {
+        oscHandleDisconnect();
+    }
     
     
     if (!xairRequestRunning() && millis() - lastXremote > RefreshXremoteInterval)
     {
-        if(oscAlive){
+        if(oscAlive)
+        {
             oscSend("/xremote");
+
+            // /meters/1 (alle Channel pre-fader) – Subscription läuft ~10s, alle 8s erneuern
+            // Nur senden wenn XAir verbunden, spart unnötige Pakete
+            oscSendMeters("/meters/1", 40);
+
+            // /meters/5 (Master L/R outputs) – wie bisher
+            oscSendMeters("/meters/5", 44);
         }
-        else{
+        else
+        {
             oscSend("/status");
         }
         lastXremote = millis();
@@ -147,6 +211,7 @@ void oscLoop()
             msg.getAddress(address, 0);
             oscDispatch(msg, address);
             oscAlive = true;
+            lastOscRxTime = millis();  // Timestamp aktualisieren
         }
         else
         {
@@ -159,13 +224,13 @@ void oscLoop()
     // =========================
     // SYSTEM READY CHECK
     // =========================
-    
+    // Warte auf: WiFi + oscAlive + mixerDetected (Name/Model empfangen)
 
-    if (!systemReady && isSystemReady())
+    if (!systemReady && isSystemReady() && mixerDetected)
     {
         if (millis() > oscReadyTime + 500)   // 500ms stabil
         {
-            DBG("System stable → starting sync");
+            DBG("System stable + mixer detected → starting sync");
 
             systemReady = true;
             xairSynced = false;
@@ -198,7 +263,3 @@ void oscSendMeters(const char* meterId, int packs)
 
     DBG2("oscSendMeters:", meterId);
 }
-
-
-
-

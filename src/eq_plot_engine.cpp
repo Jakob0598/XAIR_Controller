@@ -22,7 +22,7 @@ static float scaleQ(float v)
 static float scaleHPF(float v)
 {
     float logMin = log10f(20.0f);
-    float logMax = log10f(200.0f);
+    float logMax = log10f(400.0f);
 
     float logF = logMin + v * (logMax - logMin);
     return powf(10.0f, logF);

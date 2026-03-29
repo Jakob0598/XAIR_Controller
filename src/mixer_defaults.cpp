@@ -10,16 +10,25 @@ void mixerInitDefaults()
         channels[ch].pan = 0.5f;
         channels[ch].gain = 0.0f;
 
+        // Preamp
+        channels[ch].phantom = false;
+        channels[ch].polarity = false;
+
         channels[ch].hpfFreq = 0.0f;
         channels[ch].hpfOn = false;
         channels[ch].eqOn = false;
+
+        // Config
+        channels[ch].stereoLinked = false;
+        channels[ch].insMode = INS_OFF;
+        channels[ch].insOn = false;
 
         strcpy(channels[ch].name, "");
 
         // EQ
         for (int b = 1; b < MAX_EQ_BANDS; b++)
         {
-            channels[ch].eq[b].freq = 0.5f;
+            channels[ch].eq[b].freq = 0.2f*b;
             channels[ch].eq[b].gain = 0.5f;
             channels[ch].eq[b].q    = 0.5f;
             channels[ch].eq[b].type = EQ_PEQ;

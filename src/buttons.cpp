@@ -5,8 +5,8 @@ static const uint8_t buttonPins[BUTTON_COUNT] =
     MUTE_BUTTON_1_PIN,
     MUTE_BUTTON_2_PIN,
     MUTE_BUTTON_3_PIN,
-    ENCODER_BUTTON_PIN,
-    RETURN_BUTTON_4_PIN
+    RETURN_BUTTON_4_PIN,
+    ENCODER_BUTTON_PIN
 };
 
 bool buttonState[BUTTON_COUNT];
@@ -25,7 +25,11 @@ void buttonsBegin()
 {
     for(int i = 0; i < BUTTON_COUNT; i++)
     {
-        mcp.pinMode(buttonPins[i], INPUT_PULLUP);
+        if(i < BUTTON_COUNT-1){
+            mcp.pinMode(buttonPins[i], INPUT);
+        }else{
+            pinMode(buttonPins[i], INPUT);
+        }
 
         buttonState[i] = false;
         lastButtonState[i] = false;
@@ -46,7 +50,12 @@ void buttonsUpdate()
 
     for(int i = 0; i < BUTTON_COUNT; i++)
     {
-        bool reading = !mcp.digitalRead(buttonPins[i]);
+        bool reading;
+        if(i < BUTTON_COUNT-1){
+            reading = !mcp.digitalRead(buttonPins[i]);
+        }else{
+            reading = !digitalRead(buttonPins[i]);
+        }
 
         if(reading != lastButtonState[i])
         {

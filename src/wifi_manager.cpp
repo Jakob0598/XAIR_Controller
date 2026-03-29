@@ -122,6 +122,15 @@ void wifiBegin()
 
     WiFi.onEvent(WiFiEvent);
 
+    // Keine SSID konfiguriert → sofort AP starten
+    if (strlen(settings.ssid) == 0)
+    {
+        DBG("No SSID configured -> starting AP immediately");
+        startAP();
+        startMDNS();
+        return;
+    }
+
     wifiState = WIFI_CONNECTING;
 
     connectWiFi();
@@ -152,10 +161,19 @@ void wifiLoop()
             {
                 wifiFailStart = now;
             }
+
+            // AP Fallback – IMMER prüfen, auch während CONNECTING
+            if (now - wifiFailStart > apFallbackDelay)
+            {
+                startAP();
+                break;
+            }
+
             if (wifiState == WIFI_CONNECTING)
             {
                 return;
             }
+
             if (now - lastReconnectAttempt > reconnectInterval)
             {
                 wl_status_t status = WiFi.status();
@@ -169,11 +187,6 @@ void wifiLoop()
                 }
 
                 lastReconnectAttempt = now;
-            }
-
-            if (now - wifiFailStart > apFallbackDelay)
-            {
-                startAP();
             }
 
             break;

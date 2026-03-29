@@ -8,15 +8,9 @@ uint16_t wifi_pass_text;
 uint16_t ip1Field, ip2Field, ip3Field, ip4Field;
 uint16_t sendPortField, receivePortField;
 
-uint16_t oscMonitor;
-
-uint16_t oscAddressField;
-uint16_t oscStringField;
-uint16_t oscIntField;
-uint16_t oscFloatField;
-
-uint16_t discoverMixerButton;
-uint16_t discoveredMixerField;
+uint16_t mixerNameLabel;
+uint16_t mixerModelLabel;
+uint16_t mixerStatusLabel;
 
 /* ---------------------------------------------------------- */
 
@@ -84,33 +78,6 @@ void saveNetworkCallback(Control *sender, int type)
     ESP.restart();
 }
 
-//OSC TEST SEND
-
-void sendOSC(Control *sender, int type)
-{
-    if(type != B_DOWN) return;
-
-    oscSendFloat("/ch/01/mix/on", 0);
-}
-void sendxOSC(Control *sender, int type)
-{
-    if(type != B_DOWN) return;
-
-    oscBroadcast("/lr/mix/fader/");
-}
-void sendyOSC(Control *sender, int type)
-{
-    if(type != B_DOWN) return;
-
-    oscBroadcast("/xinfo/");
-}
-void sendzOSC(Control *sender, int type)
-{
-    if(type != B_DOWN) return;
-
-    oscBroadcast("/xinfo");
-}
-
 /* ---------------------------------------------------------- */
 
 void webuiBegin()
@@ -118,14 +85,40 @@ void webuiBegin()
     DBG("Starting WebUI...");
 
     ESPUI.setVerbosity(Verbosity::Quiet);
+
     /* CONTROL TAB */
 
-    auto maintab = ESPUI.addControl(Tab,"","Controls");
-    
-    ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendOSC);
-    ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendxOSC);
-    ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendyOSC);
-    ESPUI.addControl(Button,"Send OSC","Send",None,maintab,sendzOSC);
+    auto maintab = ESPUI.addControl(Tab,"","Info");
+
+// 🔹 Section
+ESPUI.addControl(Separator,"Mixer Info","",None, maintab);
+
+// 🔹 Status
+mixerStatusLabel = ESPUI.addControl(
+    Label,
+    "Status",
+    "Not connected",
+    None,
+    maintab
+);
+
+// 🔹 Name
+mixerNameLabel = ESPUI.addControl(
+    Label,
+    "Name",
+    "-",
+    None,
+    maintab
+);
+
+// 🔹 Model
+mixerModelLabel = ESPUI.addControl(
+    Label,
+    "Model",
+    "-",
+    None,
+    maintab
+);
 
     /* UDP TAB */
 
@@ -189,13 +182,6 @@ void webuiBegin()
         saveWifiCallback
     );
 
-    /* OSC MONITOR */
-
-    auto osctab = ESPUI.addControl(Tab,"","OSC Monitor");
-
-    oscMonitor =
-        ESPUI.addControl(Label,"Received OSC","-",None,osctab);
-
     /* CSS */
 
     ESPUI.setCustomCSS(
@@ -226,9 +212,23 @@ void webuiBegin()
 
 /* ---------------------------------------------------------- */
 
-void webuiUpdateOSC(String addr)
+void webuiUpdateMixerInfo()
 {
-    DBG2("OSC Monitor update: ", addr);
+    // 🔹 Name
+    if(strlen(mixerName) > 0)
+        ESPUI.updateControlValue(mixerNameLabel, String(mixerName));
+    else
+        ESPUI.updateControlValue(mixerNameLabel, "-");
 
-    ESPUI.updateControlValue(oscMonitor,addr);
+    // 🔹 Model
+    if(strlen(mixerModel) > 0)
+        ESPUI.updateControlValue(mixerModelLabel, String(mixerModel));
+    else
+        ESPUI.updateControlValue(mixerModelLabel, "-");
+
+    // 🔹 Status
+    if(strlen(mixerName) > 0)
+        ESPUI.updateControlValue(mixerStatusLabel, "Connected");
+    else
+        ESPUI.updateControlValue(mixerStatusLabel, "Not connected");
 }

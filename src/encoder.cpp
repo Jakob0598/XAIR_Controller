@@ -24,7 +24,7 @@ void encoderBegin()
 
 int encoderGetDelta()
 {
-    long value = encoder.getCount();
+    long value = encoder.getCount()/2;
     int delta = value - lastEncoder;
 
     lastEncoder = value;
@@ -49,6 +49,6 @@ void encoderLoop()
 
     if(delta != 0)
     {
-        //menuEncoder(delta);
+        //
     }
 }

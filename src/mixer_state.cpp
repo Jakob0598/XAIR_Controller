@@ -1,39 +1,49 @@
 #include "mixer_state.h"
 
 ChannelState channels[MAX_CHANNELS];
-BusState buses[MAX_BUSES];
+BusState     buses[MAX_BUSES];
 
 float mainFader = 0.0f;
 float meters[MAX_METERS];
 
 int mixerMaxChannels = 16;
-int mixerMaxBuses = 6;
+int mixerMaxBuses    = 6;
 
 void mixerSetLimits(int channelLimits, int busesLimits)
 {
     mixerMaxChannels = channelLimits;
-    mixerMaxBuses = busesLimits;
+    mixerMaxBuses    = busesLimits;
 
     DBG2("ChannelLimits:", channelLimits);
-    DBG2("BusLimits:", busesLimits);
+    DBG2("BusLimits:",     busesLimits);
 }
 
-static char mixerName[32];
-static char mixerModel[32];
+char mixerName[32]  = {0};
+char mixerModel[32] = {0};
 
-static bool validCh(int ch) { return ch >= 1 && ch < MAX_CHANNELS; }
-static bool validBus(int b) { return b >= 1 && b < MAX_BUSES; }
-static bool validBand(int b) { return b >= 1 && b < MAX_EQ_BANDS; }
+static bool validCh(int ch)   { return ch >= 1 && ch < MAX_CHANNELS; }
+static bool validBus(int b)   { return b  >= 1 && b  < MAX_BUSES;    }
+static bool validBand(int b)  { return b  >= 1 && b  < MAX_EQ_BANDS; }
+
+// =============================
+// MIXER META
+// =============================
 
 void mixerSetMixerName(const char* name)
 {
-    strncpy(mixerName, name, sizeof(mixerName) - 1);
+    strncpy(mixerName,  name,  sizeof(mixerName)  - 1);
+    mixerName[sizeof(mixerName) - 1] = '\0';
 }
 
 void mixerSetMixerModel(const char* model)
 {
     strncpy(mixerModel, model, sizeof(mixerModel) - 1);
+    mixerModel[sizeof(mixerModel) - 1] = '\0';
 }
+
+// =============================
+// CHANNEL BASICS
+// =============================
 
 void mixerSetFader(int ch, float value)
 {
@@ -59,7 +69,51 @@ void mixerSetGain(int ch, float value)
     channels[ch].gain = value;
 }
 
-// ---------- EQ ----------
+void mixerSetPhantom(int ch, bool value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].phantom = value;
+}
+
+void mixerSetPolarity(int ch, bool value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].polarity = value;
+}
+
+void mixerSetStereoLink(int ch, bool value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].stereoLinked = value;
+    // Partner ebenfalls markieren
+    int partner = mixerStereoPartner(ch);
+    if (partner >= 1 && partner < MAX_CHANNELS)
+        channels[partner].stereoLinked = value;
+}
+
+void mixerSetInsMode(int ch, InsMode mode)
+{
+    if (!validCh(ch)) return;
+    channels[ch].insMode = mode;
+}
+
+void mixerSetInsOn(int ch, bool value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].insOn = value;
+}
+
+void mixerSetName(int ch, const char* name)
+{
+    if (!validCh(ch)) return;
+    strncpy(channels[ch].name, name, sizeof(channels[ch].name) - 1);
+    channels[ch].name[sizeof(channels[ch].name) - 1] = '\0';
+}
+
+// =============================
+// EQ
+// =============================
+
 void mixerSetEqOn(int ch, bool value)
 {
     if (!validCh(ch)) return;
@@ -84,19 +138,6 @@ void mixerSetEqQ(int ch, int band, float value)
     channels[ch].eq[band].q = value;
 }
 
-// ---------- SEND ----------
-void mixerSetSend(int ch, int bus, float value)
-{
-    if (!validCh(ch) || !validBus(bus)) return;
-    channels[ch].sends[bus] = value;
-}
-
-void mixerSetName(int ch, const char* name)
-{
-    if (!validCh(ch)) return;
-    strncpy(channels[ch].name, name, sizeof(channels[ch].name) - 1);
-}
-
 void mixerSetHPFFreq(int ch, float value)
 {
     if (!validCh(ch)) return;
@@ -110,6 +151,54 @@ void mixerSetHPFOn(int ch, bool value)
 }
 
 // =============================
+// COMPRESSOR
+// =============================
+
+void mixerSetCompThreshold(int ch, float value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].comp.threshold = value;
+}
+
+void mixerSetCompRatio(int ch, float value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].comp.ratio = value;
+}
+
+void mixerSetCompAttack(int ch, float value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].comp.attack = value;
+}
+
+void mixerSetCompRelease(int ch, float value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].comp.release = value;
+}
+
+// =============================
+// GATE
+// =============================
+
+void mixerSetGateThreshold(int ch, float value)
+{
+    if (!validCh(ch)) return;
+    channels[ch].gate.threshold = value;
+}
+
+// =============================
+// SENDS
+// =============================
+
+void mixerSetSend(int ch, int bus, float value)
+{
+    if (!validCh(ch) || !validBus(bus)) return;
+    channels[ch].sends[bus] = value;
+}
+
+// =============================
 // BUS
 // =============================
 
@@ -119,16 +208,14 @@ void mixerSetBusFader(int bus, float value)
     buses[bus].fader = value;
 }
 
-
 // =============================
-// MAIN
+// MAIN FADER
 // =============================
 
 void mixerSetMainFader(float value)
 {
     mainFader = value;
 }
-
 
 // =============================
 // METERS

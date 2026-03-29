@@ -8,8 +8,8 @@ enum ButtonID
     BUTTON_1 = 0,
     BUTTON_2,
     BUTTON_3,
-    BUTTON_ENCODER,
-    BUTTON_RETURN
+    BUTTON_RETURN,
+    BUTTON_ENCODER
 };
 
 void buttonsBegin();

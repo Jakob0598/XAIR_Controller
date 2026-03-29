@@ -2,7 +2,7 @@
 
 #define HOSTNAME "XAIR-Controller"
 
-#define DEBUG_SERIAL true
+#define DEBUG_SERIAL false
 
 #if DEBUG_SERIAL
   #define DBG(x) Serial.println(x)
@@ -32,11 +32,11 @@
 
 #define EQ_DB_RANGE        15.0f
 
-#define EQ_PLOT_WIDTH   (TFT_HEIGHT - 20)
-#define EQ_PLOT_HEIGHT  (TFT_WIDTH - 80)
+#define EQ_PLOT_WIDTH   (TFT_HEIGHT - 60)
+#define EQ_PLOT_HEIGHT  (TFT_WIDTH - 90)
 
-#define EQ_PLOT_X  ((TFT_HEIGHT  - EQ_PLOT_WIDTH)  / 2)
-#define EQ_PLOT_Y  ((TFT_WIDTH - EQ_PLOT_HEIGHT) / 2)
+#define EQ_PLOT_X  25
+#define EQ_PLOT_Y  ((TFT_WIDTH - EQ_PLOT_HEIGHT) / 2 + 4)
 
 #define EQ_POINTS EQ_PLOT_WIDTH
 
@@ -56,33 +56,11 @@
 
 
 
-//-----------------
-/*
-#define ST7789V2_DRIVER
 
-#define TFT_WIDTH  240
-#define TFT_HEIGHT 280
-
-#define TFT_MOSI 23
-#define TFT_SCLK 18
-#define TFT_CS   5
-#define TFT_DC   16
-#define TFT_RST  17
-
-#define SPI_FREQUENCY  40000000
-#define SPI_READ_FREQUENCY 20000000
-
-#define TFT_RGB_ORDER TFT_RGB
-
-#define TFT_INVERSION_ON
-*/
+//ST7789V2
 #define BACKLIGHT_PIN 4
 
-//#define TOUCH_CS_PIN -1
-
-
-
-//I2C:
+//I2C
 #define I2C_SDA_PIN 21
 #define I2C_SCL_PIN 22
 #define I2C_FREQUENCY 400000
@@ -90,16 +68,16 @@
 //MCP23017
 #define MCP23017_ADDR 0x20
 
-// MCP23017 Pins
-#define MCP_BTN_1 0
-#define MCP_BTN_2 1
-#define MCP_BTN_3 2
-#define MCP_BTN_4 3
+//MCP23017 Pins
+#define MCP_BTN_1 10
+#define MCP_BTN_2 9
+#define MCP_BTN_3 8
+#define MCP_BTN_4 11
 
-#define MCP_LED_1 8
-#define MCP_LED_2 9
-#define MCP_LED_3 10
-#define MCP_LED_4 11
+#define MCP_LED_1 2
+#define MCP_LED_2 1
+#define MCP_LED_3 0
+#define MCP_LED_4 3
 
 //TCA9548A
 #define TCA9548A_ADDR 0x70 
@@ -126,9 +104,9 @@
 #define ENCODER_BUTTON_PIN 25
 
 //Potentiometer Fader:
-#define FADER_1_PIN 34
+#define FADER_1_PIN 36
 #define FADER_2_PIN 35
-#define FADER_3_PIN 36
+#define FADER_3_PIN 34
 
 //Fader Motor:
 #define FADER_COUNT 3
@@ -137,22 +115,12 @@
 #define FADER_PWM_RES  8       // 0-255
 
 
-/*
-#define FADER_MOTOR_1_A_PIN 25
-#define FADER_MOTOR_1_B_PIN 26
-
-#define FADER_MOTOR_2_A_PIN 27
-#define FADER_MOTOR_2_B_PIN 32
-
-#define FADER_MOTOR_3_A_PIN 33
-#define FADER_MOTOR_3_B_PIN 13
-*/
-#define FADER_MOTOR_1_A_PIN 19
-#define FADER_MOTOR_1_B_PIN 2
-#define FADER_MOTOR_2_A_PIN -1
-#define FADER_MOTOR_2_B_PIN -1 
-#define FADER_MOTOR_3_A_PIN -1
-#define FADER_MOTOR_3_B_PIN -1
+#define FADER_MOTOR_1_A_PIN 13
+#define FADER_MOTOR_1_B_PIN 12
+#define FADER_MOTOR_2_A_PIN 15
+#define FADER_MOTOR_2_B_PIN 14 
+#define FADER_MOTOR_3_A_PIN 19
+#define FADER_MOTOR_3_B_PIN 27
 
 #define FADER1_CH_A 0
 #define FADER1_CH_B 1
@@ -189,6 +157,7 @@
 #include <Adafruit_MCP23X17.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "settings.h"
 #include "wifi_manager.h"
@@ -213,6 +182,7 @@
 #include "eq_freq_table.h"
 #include "xair_sync_manager.h"
 #include "mixer_defaults.h"
+
 
 
 

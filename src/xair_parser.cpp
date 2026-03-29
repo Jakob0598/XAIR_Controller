@@ -112,7 +112,7 @@ void xairHandleChannel(OSCMessage& msg, const char* address)
     {
         if (!hasValue) return;
 
-        if (strcmp(parts[3], "gain") == 0)
+        if (strcmp(parts[3], "trim") == 0 || strcmp(parts[3], "gain") == 0)
         {
             mixerSetGain(ch, v);
             DBG3("GAIN", ch, v);
@@ -127,11 +127,21 @@ void xairHandleChannel(OSCMessage& msg, const char* address)
             mixerSetHPFOn(ch, (int)v == 1);
             DBG3("HPF ON", ch, v);
         }
+        else if (strcmp(parts[3], "phantom") == 0)
+        {
+            mixerSetPhantom(ch, (int)v == 1);
+            DBG3("PHANTOM", ch, (int)v);
+        }
+        else if (strcmp(parts[3], "invert") == 0 || strcmp(parts[3], "polarity") == 0)
+        {
+            mixerSetPolarity(ch, (int)v == 1);
+            DBG3("POLARITY", ch, (int)v);
+        }
         return;
     }
 
     // =============================
-    // CONFIG
+    // CONFIG  (name + stereolink)
     // =============================
     if (strcmp(parts[2], "config") == 0)
     {
@@ -141,6 +151,26 @@ void xairHandleChannel(OSCMessage& msg, const char* address)
             msg.getString(0, name, sizeof(name));
             mixerSetName(ch, name);
             DBG2("NAME:", name);
+        }
+        return;
+    }
+
+    // =============================
+    // INSERT  (/ch/XX/insert/on, /ch/XX/insert/sel)
+    // =============================
+    if (strcmp(parts[2], "insert") == 0)
+    {
+        if (!hasValue) return;
+
+        if (strcmp(parts[3], "on") == 0)
+        {
+            mixerSetInsOn(ch, (int)v == 1);
+            DBG3("INSERT ON", ch, (int)v);
+        }
+        else if (strcmp(parts[3], "sel") == 0)
+        {
+            mixerSetInsMode(ch, (InsMode)constrain((int)v, 0, 4));
+            DBG3("INSERT SEL", ch, (int)v);
         }
         return;
     }
@@ -187,6 +217,35 @@ void xairHandleChannel(OSCMessage& msg, const char* address)
             DBG3("EQ TYPE", band, (int)v);
         }
         return;
+    }
+}
+
+// =============================
+// HEADAMP (/headamp/XX/gain, /headamp/XX/phantom)
+// XX is 0-based index (00 = channel 1)
+// =============================
+void xairHandleHeadamp(OSCMessage& msg, const char* address)
+{
+    char parts[6][16];
+    int count = splitAddress(address, parts, 6);
+
+    if (count < 3) return;
+
+    int ch = atoi(parts[1]);   // 1-based (01 = channel 1)
+    if (ch < 1) return;
+
+    float v;
+    if (!getValue(msg, v)) return;
+
+    if (strcmp(parts[2], "gain") == 0)
+    {
+        mixerSetGain(ch, v);
+        DBG3("HEADAMP GAIN", ch, v);
+    }
+    else if (strcmp(parts[2], "phantom") == 0)
+    {
+        mixerSetPhantom(ch, (int)v == 1 || v > 0.5f);
+        DBG3("HEADAMP PHANTOM", ch, (int)v);
     }
 }
 
@@ -246,37 +305,89 @@ void xairHandleMeters(OSCMessage& msg, const char* address)
 
     if (size < 4) return;
 
-    // 🔥 Anzahl Werte
+    // Anzahl Werte aus dem Blob-Header
     uint32_t count;
     memcpy(&count, blob, 4);
 
-    if (count < 8)
+    const uint8_t* data = blob + 4;
+
+    // -------------------------------------------------------
+    // /meters/5  – ALL OUTPUTS: 6 aux, lr, 16 p16, 18 usb, hphones
+    //   Index 6 = LR L, Index 7 = LR R  (post-fader stereo out)
+    // -------------------------------------------------------
+    if (strstr(address, "/meters/5") != nullptr)
     {
-        DBG("Invalid meter count");
+        if (count < 8) return;
+
+        int16_t rawL, rawR;
+        memcpy(&rawL, data + 6 * 2, 2);
+        memcpy(&rawR, data + 7 * 2, 2);
+
+        float dbL = rawL / 256.0f;
+        float dbR = rawR / 256.0f;
+
+        // dB → linear (0–1), Clamp bei 0 dBFS
+        float linL = constrain(powf(10.0f, dbL / 20.0f), 0.0f, 1.0f);
+        float linR = constrain(powf(10.0f, dbR / 20.0f), 0.0f, 1.0f);
+
+        mixerSetMeter(0, linL);  // Main L
+        mixerSetMeter(1, linR);  // Main R
+
+        DBG3("MASTER METERS dB L/R:", dbL, dbR);
         return;
     }
 
-    const uint8_t* data = blob + 4;
+    // -------------------------------------------------------
+    // /meters/1  – ALL CHANNELS (pre-fader):
+    //   16 mono (Index 0-15) + 5x2 fx/aux + 6 bus + 4 fx send + 2 st + 2 monitor
+    //   = 40 Werte insgesamt
+    //   Wir nehmen Index 0–15 = CH01–CH16, je linker Kanal
+    // -------------------------------------------------------
+    if (strstr(address, "/meters/1") != nullptr)
+    {
+        if ((int)count < 16) return;
 
-    // 🔥 Werte holen
-    int16_t rawL, rawR;
+        for (int ch = 0; ch < 16 && ch < (int)count; ch++)
+        {
+            int16_t raw;
+            memcpy(&raw, data + ch * 2, 2);
 
-    memcpy(&rawL, data + 6 * 2, 2);   // Index 6
-    memcpy(&rawR, data + 7 * 2, 2);   // Index 7
+            float db  = raw / 256.0f;
+            float lin = constrain(powf(10.0f, db / 20.0f), 0.0f, 1.0f);
 
-    // 🔥 in dB umrechnen
-    float dbL = rawL / 256.0f;
-    float dbR = rawR / 256.0f;
+            // Meter-Slot 2+ = Channel 1-16
+            mixerSetMeter(2 + ch, lin);
+        }
+        return;
+    }
+}
 
-    // 🔥 optional: in linear (0–1)
-    float linL = powf(10.0f, dbL / 20.0f);
-    float linR = powf(10.0f, dbR / 20.0f);
+// =============================
+// CONFIG (global paths like /config/chlink/1-2)
+// =============================
+void xairHandleConfig(OSCMessage& msg, const char* address)
+{
+    DBG2("RX CONFIG:", address);
 
-    DBG3("METERS RAW", rawL, rawR);
-    DBG3("METERS dB", dbL, dbR);
-
-    // 🎯 HIER in deinen Mixer schreiben
-    //mixerSetMainMeter(linL, linR);
+    // /config/chlink/1-2, /config/chlink/3-4, etc.
+    if (strncmp(address, "/config/chlink/", 15) == 0)
+    {
+        const char* pair = address + 15;  // "1-2", "3-4", etc.
+        int chLow = 0, chHigh = 0;
+        if (sscanf(pair, "%d-%d", &chLow, &chHigh) == 2)
+        {
+            float v;
+            if (getValue(msg, v))
+            {
+                bool linked = ((int)v == 1);
+                if (chLow >= 1 && chLow < MAX_CHANNELS)
+                    channels[chLow].stereoLinked = linked;
+                if (chHigh >= 1 && chHigh < MAX_CHANNELS)
+                    channels[chHigh].stereoLinked = linked;
+                DBG3("CHLINK", chLow, (int)v);
+            }
+        }
+    }
 }
 
 // =============================
@@ -291,7 +402,6 @@ void xairHandleGlobal(OSCMessage& msg, const char* address)
     // -------------------------
     if (strncmp(address, "/xinfo", 6) == 0)
     {
-        if (mixerDetected) return;
         if (msg.size() < 4) return;
 
         char ip[32];
@@ -299,41 +409,41 @@ void xairHandleGlobal(OSCMessage& msg, const char* address)
         char name[32];
         char fw[16];
 
-        msg.getString(0, ip, sizeof(ip));       // IP
-        msg.getString(1, model, sizeof(model)); // MODEL
-        msg.getString(2, name, sizeof(name));   // NAME
-        msg.getString(3, fw, sizeof(fw));       // FW
+        msg.getString(0, ip,    sizeof(ip));
+        msg.getString(1, model, sizeof(model));
+        msg.getString(2, name,  sizeof(name));
+        msg.getString(3, fw,    sizeof(fw));
 
-        DBG2("IP:", ip);
+        DBG2("IP:",    ip);
         DBG2("MODEL:", model);
-        DBG2("NAME:", name);
-        DBG2("FW:", fw);
+        DBG2("NAME:",  name);
+        DBG2("FW:",    fw);
 
         mixerSetMixerModel(model);
         mixerSetMixerName(name);
 
-        // 🔥 AUTO LIMITS
+        // Limits immer setzen – auch wenn mixerDetected schon true ist,
+        // damit ein Reconnect die Kanal-Anzahl korrekt aktualisiert
         if (strcmp(model, "XR12") == 0)
         {
             mixerSetLimits(12, 2);
-            mixerDetected = true;
         }
         else if (strcmp(model, "XR16") == 0)
         {
             mixerSetLimits(16, 4);
-            mixerDetected = true;
         }
         else if (strcmp(model, "XR18") == 0)
         {
             mixerSetLimits(18, 6);
-            mixerDetected = true;
         }
         else
         {
-            mixerSetLimits(16, 6); // fallback
+            // Unbekanntes Modell: konservativ auf 16/6
+            mixerSetLimits(16, 6);
         }
 
-        DBG2("Detected Mixer:", model);
+        mixerDetected = true;
+        DBG2("Mixer detected:", model);
 
         return;
     }
@@ -348,4 +458,3 @@ void xairHandleGlobal(OSCMessage& msg, const char* address)
         return;
     }
 }
-

@@ -11,6 +11,9 @@ extern int mixerMaxChannels;
 extern int mixerMaxBuses;
 void mixerSetLimits(int channels, int buses);
 
+extern char mixerName[32];
+extern char mixerModel[32];
+
 enum EqType
 {
     EQ_LCUT,
@@ -43,22 +46,45 @@ struct Gate
     float threshold;
 };
 
+// FX-Insert-Modus (XAir: 0=off, 1..4=FX slot)
+enum InsMode
+{
+    INS_OFF  = 0,
+    INS_FX1  = 1,
+    INS_FX2  = 2,
+    INS_FX3  = 3,
+    INS_FX4  = 4
+};
+
 struct ChannelState
 {
     float fader;
-    bool mute;
+    bool  mute;
     float pan;
 
-    float gain;
-
+    // Preamp
+    float gain;        // 0.0-1.0 → maps to +10..+60 dB (XAir)
+    bool  phantom;     // 48V
+    bool  polarity;    // phase invert
     float hpfFreq;
-    bool hpfOn;
-    bool eqOn;
+    bool  hpfOn;
 
+    // EQ
+    bool   eqOn;
     EqBand eq[MAX_EQ_BANDS];
+
+    // Dynamics
     Compressor comp;
     Gate gate;
 
+    // Insert / FX
+    InsMode insMode;
+    bool    insOn;
+
+    // Stereo Link (wird paarweise gesetzt vom XAir: ch01+02, ch03+04, …)
+    bool stereoLinked;
+
+    // Sends
     float sends[MAX_BUSES];
 
     char name[32];
@@ -75,11 +101,16 @@ extern BusState buses[MAX_BUSES];
 extern float mainFader;
 extern float meters[MAX_METERS];
 
-// SETTERS (jetzt 1-based!)
+// SETTERS (1-based channel index)
 void mixerSetFader(int ch, float value);
 void mixerSetMute(int ch, bool value);
 void mixerSetPan(int ch, float value);
 void mixerSetGain(int ch, float value);
+void mixerSetPhantom(int ch, bool value);
+void mixerSetPolarity(int ch, bool value);
+void mixerSetStereoLink(int ch, bool value);   // setzt ch UND ch±1
+void mixerSetInsMode(int ch, InsMode mode);
+void mixerSetInsOn(int ch, bool value);
 
 void mixerSetEqOn(int ch, bool value);
 void mixerSetEqGain(int ch, int band, float value);
@@ -107,3 +138,13 @@ void mixerSetName(int ch, const char* name);
 
 void mixerSetMixerModel(const char* model);
 void mixerSetMixerName(const char* name);
+
+// Hilfsfunktion: liefert den "Partner" eines Stereolink-Kanals (ch^1 im 1-based Schema)
+// z.B. ch=1 → 2, ch=2 → 1, ch=3 → 4, ch=4 → 3
+inline int mixerStereoPartner(int ch)
+{
+    if (ch < 1) return -1;
+    // Kanäle sind paarweise: 1&2, 3&4, …
+    if ((ch % 2) == 1) return ch + 1;   // ungerade → nächster
+    return ch - 1;                        // gerade → vorheriger
+}
